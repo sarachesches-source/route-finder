@@ -63,6 +63,11 @@ When quota is back, also run one real search from the web form (practice mode of
 - MapLibre 6 needs its worker file served from `public/`; `npm install` copies it there
   (`scripts/copy-map-worker.mjs`). If the map is blank, run `node scripts/copy-map-worker.mjs`.
 
+## Git
+- Repo in this folder, branch `main`, no remote (local only). First commit 2026-11-14.
+- `.env` (API key), `out/`, `node_modules/`, `.next/` are ignored - never commit the key.
+- Commit after each working step, with a plain-language message.
+
 ## Commands
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
 - Tests: `npm test`
