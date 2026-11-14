@@ -37,6 +37,9 @@ climbing target, get three loops that hit both numbers. Inspired by trackscout.n
   further than a 15 km loop reaches. Most climb is south/south-east (headings 135-202).
 - Quota: one run is ~50 ORS requests. The free plan ran out ("403 Quota exceeded") after ~250
   requests in one day. Keep live runs few; don't loop experiments against the live API.
+- Cache (2026-11-14): successful ORS answers are saved in `.cache/ors/` (gitignored, 30 days)
+  by `src/ors-cache.mjs`. Repeating the same search costs 0 requests; CLI and web share it.
+  Errors are never cached. `--no-cache` on the CLI forces fresh requests.
 
 ## Next task
 When the ORS quota resets, run the forest-edge test to tell "terrain can't do it" from
@@ -70,7 +73,7 @@ When quota is back, also run one real search from the web form (practice mode of
 
 ## Commands
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
-- Tests: `npm test`
+- Tests: `npm test` (engine, climbs, cache)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
 - Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`)
   Optional: `--headings 8 --candidates 8` (compass directions / random round trips),

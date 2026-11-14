@@ -38,6 +38,7 @@ export default function RouteViewer({ savedRoutes }) {
   const [routes, setRoutes] = useState(savedRoutes);
   const [target, setTarget] = useState(null); // set once a search has run
   const [practice, setPractice] = useState(false);
+  const [requests, setRequests] = useState(null); // { misses, hits } from the last real search
   const [selected, setSelected] = useState(0);
   const [hoverIdx, setHoverIdx] = useState(null);
   const [activeClimb, setActiveClimb] = useState(null);
@@ -60,6 +61,7 @@ export default function RouteViewer({ savedRoutes }) {
       setRoutes(data.routes);
       setTarget({ distanceM: params.km * 1000, gainM: params.vert, shape: params.shape });
       setPractice(data.practice);
+      setRequests(data.requests);
       pick(0);
     } catch (e) {
       setError(e.message || 'Search failed.');
@@ -68,7 +70,7 @@ export default function RouteViewer({ savedRoutes }) {
     }
   }
 
-  function showSaved() { setRoutes(savedRoutes); setTarget(null); setPractice(false); pick(0); }
+  function showSaved() { setRoutes(savedRoutes); setTarget(null); setPractice(false); setRequests(null); pick(0); }
 
   const route = routes[selected];
   const climb = route && activeClimb != null ? route.climbs[activeClimb] : null;
@@ -92,6 +94,12 @@ export default function RouteViewer({ savedRoutes }) {
             </h2>
             {target && savedRoutes.length > 0 && <button className="link" onClick={showSaved}>Saved routes</button>}
           </div>
+          {requests && (
+            <p className="hint">
+              Used {requests.misses} openrouteservice request{requests.misses === 1 ? '' : 's'}
+              {requests.hits > 0 && ` · ${requests.hits} answered from saved results`}
+            </p>
+          )}
           {routes.length ? (
             <div className="cards">
               {routes.map((r, i) => (

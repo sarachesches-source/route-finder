@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { findRoutes, toGpx } from './src/engine.mjs';
 import { SHAPES } from './src/climbs.mjs';
+import { cachedFetch } from './src/ors-cache.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).join(' ').split('--').filter(Boolean).map((p) => p.trim().split(/\s+/)));
@@ -23,13 +24,26 @@ if (target.shape && !SHAPES.includes(target.shape)) {
 }
 console.log(`Target: ${target.distanceM / 1000} km, ${target.gainM} m climbing` +
   `${target.shape ? `, shape ${target.shape}` : ''}, from ${target.lat}, ${target.lon}`);
-const result = await findRoutes(target, {
-  apiKey: process.env.ORS_API_KEY,
-  headings: Number(args.headings ?? 8),
-  candidates: Number(args.candidates ?? 8),
-  onProgress: (done, total) => process.stdout.write(`\r  checked ${done}/${total} loops`),
-});
-console.log(`\n${result.tried} loops found, ${result.failed} failed${result.errors.length ? ` (${result.errors[0]})` : ''}\n`);
+// Saved answers in .cache/ors make repeat searches free; --no-cache asks openrouteservice afresh.
+const fetchImpl = 'no-cache' in args ? fetch : cachedFetch(fetch);
+let result;
+try {
+  result = await findRoutes(target, {
+    apiKey: process.env.ORS_API_KEY,
+    fetchImpl,
+    headings: Number(args.headings ?? 8),
+    candidates: Number(args.candidates ?? 8),
+    onProgress: (done, total) => process.stdout.write(`\r  checked ${done}/${total} loops`),
+  });
+} catch (e) {
+  const quota = /quota exceeded/i.test(e.message);
+  console.log(`\n${quota ? 'Daily openrouteservice limit reached - try again tomorrow.' : e.message.replace(/\s+/g, ' ')}`);
+  if (fetchImpl.stats?.hits) console.log(`(${fetchImpl.stats.hits} answers came from cache)`);
+  process.exit(1);
+}
+console.log(`\n${result.tried} loops found, ${result.failed} failed${result.errors.length ? ` (${result.errors[0]})` : ''}`);
+if (fetchImpl.stats) console.log(`openrouteservice requests: ${fetchImpl.stats.misses} new, ${fetchImpl.stats.hits} from cache`);
+console.log('');
 mkdirSync('out', { recursive: true });
 result.routes.forEach((r, i) => {
   const dPct = ((r.distanceM - target.distanceM) / target.distanceM) * 100;

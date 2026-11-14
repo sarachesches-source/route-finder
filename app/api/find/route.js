@@ -4,6 +4,7 @@ import { findRoutes } from '../../../src/engine.mjs';
 import { SHAPES } from '../../../src/climbs.mjs';
 import { summarizeRoute } from '../../../src/summary.mjs';
 import { fakeOrsFetch } from '../../../src/fake-ors.mjs';
+import { cachedFetch } from '../../../src/ors-cache.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // a search with rate-limit waits can take a couple of minutes
@@ -39,17 +40,19 @@ export async function POST(request) {
   const apiKey = practice ? 'practice' : process.env.ORS_API_KEY;
   if (!apiKey) return fail(500, 'No openrouteservice key: add ORS_API_KEY to .env.');
 
+  // Real searches go through the disk cache, so repeating one costs no quota.
+  const fetchImpl = practice ? fakeOrsFetch : cachedFetch(fetch);
   try {
     const result = await findRoutes(
       { lat, lon, distanceM: km * 1000, gainM: vert, shape },
-      practice ? { apiKey, fetchImpl: fakeOrsFetch, sleep: async () => {} } : { apiKey },
+      practice ? { apiKey, fetchImpl, sleep: async () => {} } : { apiKey, fetchImpl },
     );
     const routes = result.routes.map((r, i) => summarizeRoute(r.coords, {
       name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
       distanceM: r.distanceM, kind: r.kind, heading: r.heading, seed: r.seed,
       score: r.score, shapePenalty: r.shapePenalty,
     }));
-    return Response.json({ routes, tried: result.tried, failed: result.failed, practice });
+    return Response.json({ routes, tried: result.tried, failed: result.failed, practice, requests: fetchImpl.stats ?? null });
   } catch (e) {
     return fail(502, friendly(e.message));
   }

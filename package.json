@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test test/engine.test.mjs test/climbs.test.mjs",
+    "test": "node --test test/engine.test.mjs test/climbs.test.mjs test/cache.test.mjs",
     "postinstall": "node scripts/copy-map-worker.mjs"
   },
   "dependencies": {
