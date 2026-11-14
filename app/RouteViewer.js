@@ -38,6 +38,7 @@ export default function RouteViewer({ savedRoutes }) {
   const [routes, setRoutes] = useState(savedRoutes);
   const [target, setTarget] = useState(null); // set once a search has run
   const [practice, setPractice] = useState(false);
+  const [race, setRace] = useState(null); // uploaded race to rehearse (summary from rehearsal.mjs)
   const [requests, setRequests] = useState(null); // { misses, hits } from the last real search
   const [selected, setSelected] = useState(0);
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -59,7 +60,7 @@ export default function RouteViewer({ savedRoutes }) {
       const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
       if (!res.ok) throw new Error(data.error);
       setRoutes(data.routes);
-      setTarget({ distanceM: params.km * 1000, gainM: params.vert, shape: params.shape });
+      setTarget({ distanceM: params.km * 1000, gainM: params.vert, shape: params.shape, race: params.race ? race : null });
       setPractice(data.practice);
       setRequests(data.requests);
       pick(0);
@@ -83,13 +84,14 @@ export default function RouteViewer({ savedRoutes }) {
           <p className="sub">Loops that hit your distance and climbing.</p>
         </header>
 
-        <SearchForm start={start} onStartChange={setStart} onSearch={search} searching={searching} error={error} />
+        <SearchForm start={start} onStartChange={setStart} onSearch={search} searching={searching} error={error}
+          race={race} onRaceChange={setRace} />
 
         <section>
           <div className="section-head">
             <h2>
               {target
-                ? `${practice ? 'Practice results' : 'Results'} · ${target.distanceM / 1000} km, ${target.gainM} m`
+                ? `${practice ? 'Practice ' : ''}${target.race ? `rehearsal of ${target.race.name}` : 'results'} · ${target.distanceM / 1000} km, ${target.gainM} m`
                 : `Saved routes (${routes.length})`}
             </h2>
             {target && savedRoutes.length > 0 && <button className="link" onClick={showSaved}>Saved routes</button>}
@@ -116,6 +118,12 @@ export default function RouteViewer({ savedRoutes }) {
                     {r.climbs.length} climb{r.climbs.length === 1 ? '' : 's'} · looks like {SHAPE_WORDS[r.bestFit]}
                     {r.bestFit !== 'flat' && ` (${fitWord(r.penalties[r.bestFit])})`}
                   </span>
+                  {r.patternPenalty != null && (
+                    <span className="fit">
+                      Race pattern: <strong>{fitWord(r.patternPenalty)} match</strong>
+                      {r.direction && ` · run it ${r.direction}`}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -134,6 +142,7 @@ export default function RouteViewer({ savedRoutes }) {
                 hoverIdx={hoverIdx}
                 onHover={setHoverIdx}
                 activeClimb={climb}
+                ghost={target?.race && route.patternPenalty != null ? target.race.profile : null}
               />
             </section>
 

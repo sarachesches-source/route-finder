@@ -2,6 +2,7 @@
 // them by how closely they hit the distance and climbing targets.
 
 import { findClimbs, shapePenalty } from './climbs.mjs';
+import { bestDirection } from './rehearsal.mjs';
 
 const ORS_URL ='https://api.openrouteservice.org/v2/directions/foot-hiking/geojson';
 
@@ -110,11 +111,12 @@ async function fetchCorrected(job, target, ctx) {
  * Two kinds of candidate:
  *  - heading loops: triangles pointed at each compass direction, so the hilly side gets tried
  *  - random loops: openrouteservice's own round trips with varied shape and seed
- * @param {{lat:number, lon:number, distanceM:number, gainM:number, shape?:'long'|'rolling'|'repeats'}} target
+ * @param {{lat:number, lon:number, distanceM:number, gainM:number, shape?:'long'|'rolling'|'repeats', pattern?:number[]}} target
+ *   pattern: a race's climbing curve (see rehearsal.mjs) to copy
  */
 export async function findRoutes(target, {
   apiKey, headings = 8, spreads = [25, 60], candidates = 8, corrections = 2,
-  distanceTolerance = 0.05, shapeWeight = 0.5, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
+  distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
 } = {}) {
   if (!apiKey) throw new Error('Missing openrouteservice API key');
   const { lat, lon } = target;
@@ -148,6 +150,13 @@ export async function findRoutes(target, {
       r.climbs = findClimbs(r.coords);
       r.shapePenalty = shapePenalty(r.climbs, target.shape, { routeGainM: r.gainM });
       r.score += shapeWeight * r.shapePenalty;
+    }
+    // Optional race pattern (climbing curve of an uploaded race): try the loop both ways round.
+    if (target.pattern) {
+      const { penalty, reversed } = bestDirection(r.coords, target.pattern);
+      if (reversed) { r.coords = [...r.coords].reverse(); r.reversed = true; }
+      r.patternPenalty = penalty;
+      r.score += patternWeight * penalty;
     }
   }
   routes.sort((a, b) => a.score - b.score);

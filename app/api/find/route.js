@@ -1,10 +1,11 @@
-// POST /api/find  { lat, lon, km, vert, shape?, practice? }
+// POST /api/find  { lat, lon, km, vert, shape?, race?: { curve, name }, practice? }
 // Runs the route search on the server, so the openrouteservice key never reaches the browser.
 import { findRoutes } from '../../../src/engine.mjs';
 import { SHAPES } from '../../../src/climbs.mjs';
 import { summarizeRoute } from '../../../src/summary.mjs';
 import { fakeOrsFetch } from '../../../src/fake-ors.mjs';
 import { cachedFetch } from '../../../src/ors-cache.mjs';
+import { isValidCurve, loopDirection } from '../../../src/rehearsal.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // a search with rate-limit waits can take a couple of minutes
@@ -34,6 +35,8 @@ export async function POST(request) {
   if (!Number.isFinite(vert) || vert < 0 || vert > 5000) return fail(400, 'Climbing must be between 0 and 5000 m.');
   const shape = body.shape || undefined;
   if (shape && !SHAPES.includes(shape)) return fail(400, `Shape must be one of: ${SHAPES.join(', ')}.`);
+  const pattern = body.race?.curve;
+  if (pattern != null && !isValidCurve(pattern)) return fail(400, 'The race pattern could not be read. Try uploading the race again.');
 
   // Practice mode only exists while developing, never on a deployed site.
   const practice = body.practice === true && process.env.NODE_ENV !== 'production';
@@ -44,13 +47,14 @@ export async function POST(request) {
   const fetchImpl = practice ? fakeOrsFetch : cachedFetch(fetch);
   try {
     const result = await findRoutes(
-      { lat, lon, distanceM: km * 1000, gainM: vert, shape },
+      { lat, lon, distanceM: km * 1000, gainM: vert, shape, pattern: pattern ?? undefined },
       practice ? { apiKey, fetchImpl, sleep: async () => {} } : { apiKey, fetchImpl },
     );
     const routes = result.routes.map((r, i) => summarizeRoute(r.coords, {
       name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
       distanceM: r.distanceM, kind: r.kind, heading: r.heading, seed: r.seed,
       score: r.score, shapePenalty: r.shapePenalty,
+      patternPenalty: r.patternPenalty, direction: loopDirection(r.coords),
     }));
     return Response.json({ routes, tried: result.tried, failed: result.failed, practice, requests: fetchImpl.stats ?? null });
   } catch (e) {

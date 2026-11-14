@@ -25,6 +25,12 @@ climbing target, get three loops that hit both numbers. Inspired by trackscout.n
    profile linked to the map, climb list, GPX download. Saved routes in `out/` show on load.
    Practice mode (dev only) uses `src/fake-ors.mjs`: invented terrain, no API quota.)
 4. Race rehearsal: GPX upload, match climb pattern to local terrain
+   (done, practice-tested only - `src/rehearsal.mjs`. Pattern = "climbing curve": share of total
+   climb done at each 2% of distance; routes scored by mean gap between curves (0-100), each loop
+   tried both ways round, result says clockwise/anticlockwise. Climbing target defaults to the
+   race's m/km x training km. Web: upload box in the form; dashed race outline on the chart.
+   CLI: `--race file.gpx`. Sample: `samples/sample-mountain-marathon.gpx` (made up).
+   Limit: a 15 km loop from the city can't hold two 500 m+ climbs; expect "partial" matches.)
 5. Chat input and saved routes
 
 ## Live test results (2026-11-14, central Cluj, 15 km / 500 m)
@@ -53,6 +59,10 @@ When the ORS quota resets, run the forest-edge test to tell "terrain can't do it
 - If it still misses badly: try loops that reach further (out-and-back "lollipop" shapes).
 - Same session, one extra run to check climb shaping live:
   `node find-routes.mjs --lat 46.7420 --lon 23.5870 --km 15 --vert 500 --shape long`
+- And race rehearsal live (try a real race GPX if available):
+  `node find-routes.mjs --lat 46.7420 --lon 23.5870 --km 15 --race samples/sample-mountain-marathon.gpx`
+- Note: `out/` real routes were overwritten by practice output on 2026-11-14 (since fixed:
+  practice now writes to `out/practice/`). The first live run will refill `out/`.
 
 Offline work that needs no API quota: hill-repeats route builder (see step 2).
 When quota is back, also run one real search from the web form (practice mode off).
@@ -73,8 +83,9 @@ When quota is back, also run one real search from the web form (practice mode of
 
 ## Commands
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
-- Tests: `npm test` (engine, climbs, cache)
+- Tests: `npm test` (engine, climbs, cache, rehearsal)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
 - Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`)
   Optional: `--headings 8 --candidates 8` (compass directions / random round trips),
-  `--shape long|rolling|repeats` (prefer that climb profile)
+  `--shape long|rolling|repeats` (prefer that climb profile), `--race file.gpx` (copy a race's
+  climb pattern), `--practice` (made-up routes, no API use; writes to `out/practice/`)

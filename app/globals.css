@@ -170,3 +170,18 @@ button { font: inherit; color: inherit; }
 .section-head .link { font-size: 13px; }
 .good { color: var(--good); font-weight: 600; }
 .off { color: var(--error); font-weight: 600; }
+
+/* Race rehearsal */
+.optional { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 4px; }
+.upload {
+  position: relative; display: flex; flex-direction: column; gap: 2px; cursor: pointer;
+  border: 1px dashed var(--line); border-radius: var(--radius); padding: 10px 12px;
+}
+.upload:hover, .upload:focus-within { border-color: var(--accent); }
+.upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload > span:first-of-type { font-weight: 600; color: var(--accent); }
+.race-box { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.race-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.race-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.race-mini { width: 100%; height: 32px; color: var(--muted); display: block; }
+.search select:disabled { opacity: 0.6; }

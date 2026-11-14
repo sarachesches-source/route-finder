@@ -13,7 +13,9 @@ function nearestIndex(along, d) {
   return d - along[lo] < along[hi] - d ? lo : hi;
 }
 
-export default function ElevationProfile({ route, color, hoverIdx, onHover, activeClimb }) {
+// `ghost`: optional race outline [[fraction of distance, 0..1 height], ...], drawn dashed and
+// stretched over this route so the two climb patterns can be compared by eye.
+export default function ElevationProfile({ route, color, hoverIdx, onHover, activeClimb, ghost }) {
   const { coords, along, climbs } = route;
   const distanceM = along.at(-1) || 1; // chart length = measured along the points
   const ele = coords.map((c) => c[2]);
@@ -25,6 +27,9 @@ export default function ElevationProfile({ route, color, hoverIdx, onHover, acti
 
   const line = coords.map((c, i) => `${i ? 'L' : 'M'}${x(along[i]).toFixed(1)},${y(c[2]).toFixed(1)}`).join('');
   const area = `${line}L${W},${H}L0,${H}Z`;
+  const ghostLine = ghost?.length
+    ? ghost.map(([f, h], i) => `${i ? 'L' : 'M'}${(f * W).toFixed(1)},${y(minE + h * (maxE - minE)).toFixed(1)}`).join('')
+    : null;
 
   function handleMove(e) {
     const box = e.currentTarget.getBoundingClientRect();
@@ -59,6 +64,10 @@ export default function ElevationProfile({ route, color, hoverIdx, onHover, acti
             />
           ))}
           <path d={area} fill="var(--profile-fill)" />
+          {ghostLine && (
+            <path d={ghostLine} fill="none" stroke="var(--profile-line)" strokeWidth="1.5" strokeDasharray="5 4"
+              opacity="0.6" vectorEffect="non-scaling-stroke" />
+          )}
           <path d={line} fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           {hover && (
             <line x1={x(hover.d)} x2={x(hover.d)} y1={0} y2={H}
@@ -68,6 +77,7 @@ export default function ElevationProfile({ route, color, hoverIdx, onHover, acti
         <span className="ele-label" style={{ top: 2 }}>{Math.round(maxE)} m</span>
         <span className="ele-label" style={{ bottom: 2 }}>{Math.round(minE)} m</span>
       </div>
+      {ghostLine && <div className="hint">Dashed line: the race’s shape, stretched to this route’s length.</div>}
       <div className="axis">
         <span>0 km</span>
         <span>{(distanceM / 2000).toFixed(1)} km</span>
