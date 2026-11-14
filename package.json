@@ -1,0 +1,18 @@
+{
+  "name": "running-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test test/engine.test.mjs test/climbs.test.mjs",
+    "postinstall": "node scripts/copy-map-worker.mjs"
+  },
+  "dependencies": {
+    "maplibre-gl": "^6.18.0",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
+}

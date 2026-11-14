@@ -1,0 +1,6 @@
+.env
+out/
+node_modules/
+.next/
+next-env.d.ts
+public/maplibre-gl-worker.mjs
