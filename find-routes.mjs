@@ -8,7 +8,7 @@ import { SHAPES } from './src/climbs.mjs';
 import { cachedFetch } from './src/ors-cache.mjs';
 import { fakeOrsFetch } from './src/fake-ors.mjs';
 import { parseGpx, gpxName } from './src/gpx.mjs';
-import { summarizeRace, rehearsalGain, loopDirection } from './src/rehearsal.mjs';
+import { summarizeRace, rehearsalGain, loopDirection, describeGrades } from './src/rehearsal.mjs';
 import { describeSurface } from './src/surface.mjs';
 
 const args = Object.fromEntries(
@@ -30,7 +30,8 @@ if (args.race) {
   const race = summarizeRace(parseGpx(xml), gpxName(xml) ?? args.race);
   console.log(`Race: ${race.name}, ${(race.distanceM / 1000).toFixed(1)} km, ${race.gainM} m up (${Math.round(race.gainPerKm)} m/km)`);
   for (const c of race.climbs) console.log(`   +${c.gainM} m at ${c.startPct}-${c.endPct}% of the race`);
-  target.pattern = race.curve;
+  target.pattern = { climb: race.curve, descent: race.descent, grades: race.grades };
+  console.log(`   steepness: ${describeGrades(race.grades)}`);
   if (args.vert == null) target.gainM = rehearsalGain(race, target.distanceM / 1000);
 }
 if (target.shape && !SHAPES.includes(target.shape)) {
@@ -73,7 +74,7 @@ result.routes.forEach((r, i) => {
   console.log(`#${i + 1}  ${(r.distanceM / 1000).toFixed(1)} km (${dPct >= 0 ? '+' : ''}${dPct.toFixed(0)}%)  ` +
     `${r.gainM} m up (${gPct >= 0 ? '+' : ''}${gPct.toFixed(0)}%)  ` +
     `${r.shapePenalty != null ? `shape miss ${Math.round(r.shapePenalty)}  ` : ''}` +
-    `${r.patternPenalty != null ? `race-pattern miss ${Math.round(r.patternPenalty)}${loopDirection(r.coords) ? `, run ${loopDirection(r.coords)}` : ''}  ` : ''}score ${r.score.toFixed(1)}  ` +
+    `${r.patternPenalty != null ? `race-pattern miss ${Math.round(r.patternPenalty)} (climbs ${r.patternParts.climb}, descents ${r.patternParts.descent}, steepness ${r.patternParts.steepness})${loopDirection(r.coords) ? `, run ${loopDirection(r.coords)}` : ''}  ` : ''}score ${r.score.toFixed(1)}  ` +
     `[${r.kind === 'heading' ? `heading ${r.heading} deg` : `random seed ${r.seed}`}]  -> ${file}`);
   if (r.surface) console.log(`    ${describeSurface(r.surface)}  (${r.surface.road}% on roads/streets)`);
 });

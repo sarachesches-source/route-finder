@@ -220,3 +220,6 @@ button { font: inherit; color: inherit; }
 .reasons .con .mark { color: var(--error); font-weight: 700; }
 .reasons .mark { color: var(--muted); }
 .warnings li { background: rgba(217, 98, 43, 0.12); border-radius: 6px; padding: 6px 8px; }
+
+.reasons li.sub { font-size: 13px; }
+.reasons li.sub .label { padding-left: 10px; }

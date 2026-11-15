@@ -79,3 +79,35 @@ test('findRoutes with a race pattern adds a pattern penalty and may reverse loop
     assert.ok(x.patternPenalty <= patternPenalty(gainCurve([...x.coords].reverse()), race.curve) + 1e-9);
   }
 });
+
+test('gradeMix puts distance in the right steepness bands', async () => {
+  const { gradeMix, GRADE_BANDS } = await import('../src/rehearsal.mjs');
+  // 1 km flat, 400 m at 25% up, 1 km at 6% down.
+  const prof = (d) => (d < 1000 ? 500 : d < 1400 ? 500 + 0.25 * (d - 1000) : 600 - 0.06 * (d - 1400));
+  const mix = gradeMix(line(2400, prof));
+  const band = (label) => mix[GRADE_BANDS.findIndex((b) => b.label === label)];
+  assert.ok(Math.abs(band('flat') - 1000 / 2400) < 0.05, `flat ${band('flat')}`);
+  assert.ok(Math.abs(band('very steep up') - 400 / 2400) < 0.05, `very steep up ${band('very steep up')}`);
+  assert.ok(Math.abs(band('gentle down') - 1000 / 2400) < 0.05, `gentle down ${band('gentle down')}`);
+  assert.ok(Math.abs(mix.reduce((a, b) => a + b, 0) - 1) < 0.01);
+});
+
+test('race matching notices different descents and steepness, not just climb placement', async () => {
+  const { racePattern, matchRace, isValidMix } = await import('../src/rehearsal.mjs');
+  const tri = (d, a, b, c) => (d < a || d > c ? 0 : d <= b ? (d - a) / (b - a) : (c - d) / (c - b));
+  // Race: steady climb over the first half, then a sharp drop by 60%, flat after.
+  const race = racePattern(line(40000, (d) => 400 + 1000 * tri(d / 40000, 0, 0.5, 0.6)));
+  // Same shape, shorter: should match on all three parts.
+  const same = matchRace(line(12000, (d) => 400 + 300 * tri(d / 12000, 0, 0.5, 0.6)), race);
+  // Same climb, but a long gentle descent over the whole second half.
+  const gentleDown = matchRace(line(12000, (d) => 400 + 300 * tri(d / 12000, 0, 0.5, 1)), race);
+  assert.ok(same.penalty < 10, `same ${JSON.stringify(same)}`);
+  assert.ok(gentleDown.parts.climb < 10, 'climbs are still in the same place');
+  assert.ok(gentleDown.parts.descent > 30, `descents differ: ${gentleDown.parts.descent}`);
+  assert.ok(gentleDown.parts.steepness > same.parts.steepness + 10, 'steepness differs');
+  assert.ok(gentleDown.penalty > same.penalty + 10);
+  assert.ok(isValidMix(race.grades));
+  assert.ok(!isValidMix([0.5, 0.5]) && !isValidMix([1, 1, 0, 0, 0, 0, 0]));
+  // Old-style pattern (climbing curve only) still works.
+  assert.deepEqual(Object.keys(matchRace(line(12000, () => 400), race.climb).parts), ['climb']);
+});

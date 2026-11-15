@@ -214,7 +214,7 @@ function WhyThisRoute({ route, target, routes }) {
       {reasons.length > 0 && (
         <ul className="reasons">
           {reasons.map((r) => (
-            <li key={r.label} className={r.good === true ? 'pro' : r.good === false ? 'con' : ''}>
+            <li key={r.label} className={`${r.good === true ? 'pro' : r.good === false ? 'con' : ''}${r.sub ? ' sub' : ''}`}>
               <span className="mark" aria-hidden="true">{r.good === true ? '✓' : r.good === false ? '✗' : '•'}</span>
               <span className="label">{r.label}</span>
               <span>{r.value}</span>

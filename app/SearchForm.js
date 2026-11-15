@@ -3,7 +3,7 @@
 // Clicking the map also sets the start.
 import { useEffect, useState } from 'react';
 import { parseGpx, gpxName } from '../src/gpx.mjs';
-import { summarizeRace, rehearsalGain } from '../src/rehearsal.mjs';
+import { summarizeRace, rehearsalGain, describeGrades } from '../src/rehearsal.mjs';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
@@ -67,7 +67,7 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
     onSearch({
       lat: start.lat, lon: start.lon, km: Number(km), vert: Number(vert), practice,
       shape: race ? '' : shape,
-      race: race ? { curve: race.curve, name: race.name } : undefined,
+      race: race ? { curve: race.curve, descent: race.descent, grades: race.grades, name: race.name } : undefined,
     });
   }
 
@@ -132,6 +132,7 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
                 {(race.distanceM / 1000).toFixed(1)} km · {race.gainM} m up · main climbs:
                 {' '}{race.climbs.map((c) => `+${c.gainM} m at ${c.startPct}–${c.endPct}%`).join(', ') || 'none'}
               </span>
+              {race.grades && <span className="hint">Steepness: {describeGrades(race.grades)}</span>}
               <svg className="race-mini" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
                 <path d={`M${race.profile.map(([f, h]) => `${(f * 100).toFixed(1)},${(22 - h * 20).toFixed(1)}`).join('L')}`}
                   fill="none" stroke="currentColor" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />

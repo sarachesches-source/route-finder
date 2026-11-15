@@ -99,7 +99,13 @@ Features from the 2026-11-15 research into what other apps miss, best first:
    no water on 10 km+, 10 km+ dry stretch) and notes (steepest climb, shortcut, water stops).
    API now also sends accuracy / extra / closeEnough per result.
    Live forest edge route 1: steep climb 22% at km 8.4, steep descent 21% at km 6.7.
-4. Race rehearsal: also match descents and steepness, not just where the climbing comes.
+4. DONE 2026-11-15: race rehearsal matches descents and steepness too (`src/rehearsal.mjs`).
+   Pattern = { climb curve, descent curve, steepness mix (7 grade bands over 100 m pieces) };
+   `matchRace` scores each part 0-100 and mixes them 45% climbs / 25% descents / 30% steepness.
+   Web: race box shows the race's steepness; "Why this route" shows each part and compares
+   steep share ("race 34% steep, this route 20%"). CLI prints the three parts.
+   Live (from cache): descent part separated routes (33 / 55 / 20); the most accurate route
+   on climbing dropped to #2 because its descents don't match.
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
 Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 

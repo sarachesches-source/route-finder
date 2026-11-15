@@ -130,7 +130,8 @@ async function fetchCorrected(job, target, ctx) {
  *  - heading loops: triangles pointed at each compass direction, so the hilly side gets tried
  *  - random loops: openrouteservice's own round trips with varied shape and seed
  * @param {{lat:number, lon:number, distanceM:number, gainM:number, shape?:'long'|'rolling'|'repeats', pattern?:number[]}} target
- *   pattern: a race's climbing curve (see rehearsal.mjs) to copy
+ *   pattern: a race pattern to copy, { climb, descent?, grades? } (see rehearsal.mjs); an array
+ *   is taken as the climbing curve alone
  */
 export async function findRoutes(target, {
   apiKey, headings = 8, spreads = [25, 60], candidates = 8, corrections = 2,
@@ -172,7 +173,8 @@ export async function findRoutes(target, {
     }
     // Optional race pattern (climbing curve of an uploaded race): try the loop both ways round.
     if (target.pattern) {
-      const { penalty, reversed } = bestDirection(r.coords, target.pattern);
+      const { penalty, parts, reversed } = bestDirection(r.coords, target.pattern);
+      r.patternParts = parts;
       if (reversed) {
         const last = r.coords.length - 1;
         r.coords = [...r.coords].reverse();

@@ -6,7 +6,7 @@ import { summarizeRoute, attachWater } from '../../../src/summary.mjs';
 import { fakeOrsFetch, fakeWaterPoints } from '../../../src/fake-ors.mjs';
 import { findWater } from '../../../src/water-sources.mjs';
 import { cachedFetch } from '../../../src/ors-cache.mjs';
-import { isValidCurve, loopDirection } from '../../../src/rehearsal.mjs';
+import { isValidCurve, isValidMix, loopDirection } from '../../../src/rehearsal.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // a search with rate-limit waits can take a couple of minutes
@@ -36,8 +36,14 @@ export async function POST(request) {
   if (!Number.isFinite(vert) || vert < 0 || vert > 5000) return fail(400, 'Climbing must be between 0 and 5000 m.');
   const shape = body.shape || undefined;
   if (shape && !SHAPES.includes(shape)) return fail(400, `Shape must be one of: ${SHAPES.join(', ')}.`);
-  const pattern = body.race?.curve;
-  if (pattern != null && !isValidCurve(pattern)) return fail(400, 'The race pattern could not be read. Try uploading the race again.');
+  let pattern;
+  if (body.race != null) {
+    const { curve, descent, grades } = body.race;
+    if (!isValidCurve(curve) || (descent != null && !isValidCurve(descent)) || (grades != null && !isValidMix(grades))) {
+      return fail(400, 'The race pattern could not be read. Try uploading the race again.');
+    }
+    pattern = { climb: curve, descent: descent ?? undefined, grades: grades ?? undefined };
+  }
 
   // Practice mode only exists while developing, never on a deployed site.
   const practice = body.practice === true && process.env.NODE_ENV !== 'production';
@@ -55,7 +61,7 @@ export async function POST(request) {
       name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
       distanceM: r.distanceM, kind: r.kind, heading: r.heading, seed: r.seed,
       score: r.score, accuracy: r.accuracy, extra: r.extra, closeEnough: r.closeEnough,
-      shapePenalty: r.shapePenalty,
+      shapePenalty: r.shapePenalty, patternParts: r.patternParts,
       patternPenalty: r.patternPenalty, direction: loopDirection(r.coords), surface: r.surface ?? null,
     }));
     // Water stops along the results (OpenStreetMap via openrouteservice, cached; made up in practice mode).

@@ -1,6 +1,7 @@
 // "Why this route": plain-language reasons for a result's ranking, plus warnings a runner
 // should know before going (steep bits, roads, no water, unknown surface).
 // No network; works on routes from summary.mjs (browser or server).
+import { gradeMix, GRADE_BANDS } from './rehearsal.mjs';
 
 /**
  * Steepest climb and descent over any `windowM` stretch (default 200 m), so one bad
@@ -47,6 +48,12 @@ export function explainRoute(route, target, routes = [route]) {
     }
     if (route.patternPenalty != null) {
       reasons.push({ label: 'Race pattern', value: `${fit(route.patternPenalty)} match${route.direction ? `, run it ${route.direction}` : ''}`, good: route.patternPenalty <= 40 });
+      const parts = route.patternParts ?? {};
+      const partNames = { climb: 'Climbs placed', descent: 'Descents placed', steepness: 'Steepness' };
+      for (const [k, label] of Object.entries(partNames)) {
+        if (parts[k] != null) reasons.push({ label, value: `${fit(parts[k])} match`, good: parts[k] <= 15 ? true : parts[k] > 40 ? false : null, sub: true });
+      }
+      if (target.race?.grades) notes.push(steepCompare(target.race.grades, gradeMix(route.coords)));
     }
     rankNote = rankReason(route, routes);
   }
@@ -74,6 +81,16 @@ export function explainRoute(route, target, routes = [route]) {
   return { rankNote, reasons, warnings, notes };
 }
 
+/** Share of distance steeper than 10%, up or down. */
+function steepShare(mix) {
+  return Math.round(100 * GRADE_BANDS.reduce((s, b, i) => (b.label.includes('steep') ? s + mix[i] : s), 0));
+}
+
+/** "The race is 34% steep (10%+ up or down); this route 21%." */
+function steepCompare(raceMix, routeMix) {
+  return `The race is ${steepShare(raceMix)}% steep (over 10% up or down); this route ${steepShare(routeMix)}%.`;
+}
+
 /** One sentence on why this route sits where it does among the results. */
 function rankReason(route, routes) {
   if (route.accuracy == null) return null;
@@ -82,11 +99,12 @@ function rankReason(route, routes) {
   if (route === best || route.accuracy === best.accuracy) return 'Closest of all to your distance and climbing.';
   if (!route.closeEnough) return 'Further from your targets than the others: shown as an alternative.';
   const behind = Math.round(route.accuracy - best.accuracy);
+  const pts = `${behind} point${behind === 1 ? '' : 's'} behind`;
   const wins = [];
   if (route.surface && best.surface && route.surface.trail > best.surface.trail + 5) wins.push('more trail');
   if (route.shapePenalty != null && route.shapePenalty + 5 < best.shapePenalty) wins.push('a better climb shape');
   if (route.patternPenalty != null && route.patternPenalty + 5 < best.patternPenalty) wins.push('a closer race pattern');
   return wins.length
-    ? `Nearly as close to your targets as the most accurate route (${behind} points behind), with ${wins.join(' and ')}.`
-    : `Nearly as close to your targets as the most accurate route (${behind} points behind): a different option.`;
+    ? `Nearly as close to your targets as the most accurate route (${pts}), with ${wins.join(' and ')}.`
+    : `Nearly as close to your targets as the most accurate route (${pts}): a different option.`;
 }
