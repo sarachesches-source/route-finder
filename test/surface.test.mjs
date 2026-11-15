@@ -39,3 +39,14 @@ test('practice search returns a surface breakdown and prefers trail among close 
   const avg = (rs) => rs.reduce((s, r) => s + r.surface.trail, 0) / rs.length;
   assert.ok(avg(withTrail.routes) >= avg(noTrail.routes), 'trail preference never lowers trail share');
 });
+
+test('surfaceFeatures turns sections into coloured map lines that join up', async () => {
+  const { surfaceFeatures } = await import('../src/surface.mjs');
+  const fc = surfaceFeatures(coords, [[0, 3, 'paved'], [3, 5, 'gravel'], [5, 9, 'trail'], [9, 10, 'unknown']]);
+  assert.equal(fc.features.length, 4);
+  assert.deepEqual(fc.features.map((f) => f.properties.group), ['paved', 'gravel', 'trail', 'unknown']);
+  assert.equal(fc.features[0].geometry.coordinates.length, 4); // points 0..3
+  // Each stretch starts where the last one ended: no gaps on the map.
+  assert.deepEqual(fc.features[1].geometry.coordinates[0], fc.features[0].geometry.coordinates.at(-1));
+  assert.deepEqual(surfaceFeatures(coords, null).features, []);
+});

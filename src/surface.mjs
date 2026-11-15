@@ -57,3 +57,23 @@ export function describeSurface(s) {
   if (!s) return null;
   return SURFACE_GROUPS.filter((g) => s[g] >= 1).map((g) => `${s[g]}% ${g}`).join(' · ');
 }
+
+/**
+ * Map lines for a route coloured by surface: one LineString per stretch, with its group.
+ * @param sections [[fromIndex, toIndex, group], ...] from summarizeSurface
+ */
+export function surfaceFeatures(coords, sections) {
+  return {
+    type: 'FeatureCollection',
+    features: (sections ?? [])
+      .filter(([from, to]) => to > from && to < coords.length)
+      .map(([from, to, group]) => ({
+        type: 'Feature',
+        properties: { group },
+        geometry: { type: 'LineString', coordinates: coords.slice(from, to + 1).map(([lon, lat]) => [lon, lat]) },
+      })),
+  };
+}
+
+// Map colours for each surface group (match the bars on the result cards).
+export const SURFACE_COLORS = { trail: '#8a5a2b', gravel: '#c9a35f', paved: '#6e7479', unknown: '#9a968a' };

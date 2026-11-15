@@ -3,6 +3,7 @@
 // (click anywhere to move it) and a dot for the point hovered on the elevation chart.
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
+import { surfaceFeatures, SURFACE_COLORS } from '../src/surface.mjs';
 
 maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs'); // copied there by scripts/copy-map-worker.mjs
 
@@ -34,7 +35,7 @@ function boundsOf(coords) {
 }
 
 /** Remove old route layers and draw the current routes. */
-function drawRoutes(map, { routes, selected, colors }) {
+function drawRoutes(map, { routes, selected, colors, colorBy }) {
   const style = map.getStyle();
   for (const layer of style.layers) if (layer.id.startsWith('route-')) map.removeLayer(layer.id);
   for (const id of Object.keys(style.sources)) if (id.startsWith('route-')) map.removeSource(id);
@@ -56,7 +57,36 @@ function drawRoutes(map, { routes, selected, colors }) {
     });
   });
   highlight(map, routes.length, selected);
+  drawSurface(map, routes[selected], colorBy === 'surface', selected);
   drawWater(map, routes[selected]);
+  stackOverlays(map);
+}
+
+/** Selected route coloured by surface (trail / gravel / paved; unknown dashed). Empty when off. */
+function drawSurface(map, route, on, index) {
+  // Hide the selected route's own colour underneath, so dashed 'unknown' stretches read clearly.
+  if (index != null && map.getLayer(lineId(index))) map.setPaintProperty(lineId(index), 'line-opacity', on && route?.surface ? 0 : 1);
+  const data = on && route?.surface?.sections
+    ? surfaceFeatures(route.coords, route.surface.sections)
+    : { type: 'FeatureCollection', features: [] };
+  const source = map.getSource('surface');
+  if (source) { source.setData(data); return; }
+  map.addSource('surface', { type: 'geojson', data });
+  const color = ['match', ['get', 'group'], 'trail', SURFACE_COLORS.trail, 'gravel', SURFACE_COLORS.gravel,
+    'paved', SURFACE_COLORS.paved, SURFACE_COLORS.unknown];
+  map.addLayer({
+    id: 'surface-line', type: 'line', source: 'surface', filter: ['!=', ['get', 'group'], 'unknown'],
+    layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': color, 'line-width': 5 },
+  });
+  map.addLayer({
+    id: 'surface-unknown', type: 'line', source: 'surface', filter: ['==', ['get', 'group'], 'unknown'],
+    paint: { 'line-color': SURFACE_COLORS.unknown, 'line-width': 5, 'line-dasharray': [1.5, 1] },
+  });
+}
+
+/** Keep surface colours above the routes and water dots above everything. */
+function stackOverlays(map) {
+  for (const id of ['surface-line', 'surface-unknown', 'water-dots']) if (map.getLayer(id)) map.moveLayer(id);
 }
 
 /** Blue dots for the selected route's water stops. */
@@ -90,13 +120,13 @@ function highlight(map, count, selected) {
   }
 }
 
-export default function MapView({ routes, selected, colors, hoverPoint, focus, mapStyle, start, onSelect, onPickStart }) {
+export default function MapView({ routes, selected, colors, hoverPoint, focus, mapStyle, start, onSelect, onPickStart, colorBy = 'route' }) {
   const container = useRef(null);
   const mapRef = useRef(null);
   const hoverMarker = useRef(null);
   const startMarker = useRef(null);
   const latest = useRef(null);
-  latest.current = { routes, selected, colors, onSelect, onPickStart };
+  latest.current = { routes, selected, colors, onSelect, onPickStart, colorBy };
   const firstStyle = useRef(mapStyle);
   const firstRoutes = useRef(true);
 
@@ -159,10 +189,22 @@ export default function MapView({ routes, selected, colors, hoverPoint, focus, m
     if (!map) return;
     highlight(map, routes.length, selected);
     // Only once the routes are drawn (map ready); before that, 'style.load' draws the water.
-    if (map.getLayer(lineId(selected))) { drawWater(map, routes[selected]); map.moveLayer('water-dots'); }
+    if (map.getLayer(lineId(selected))) {
+      drawSurface(map, routes[selected], colorBy === 'surface', selected);
+      drawWater(map, routes[selected]);
+      stackOverlays(map);
+    }
     if (!didSelect.current) { didSelect.current = true; return; } // first view shows all routes
     if (routes[selected]) map.fitBounds(boundsOf(routes[selected].coords), { padding: 50, duration: 600 });
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Switch the selected route between its own colour and surface colours.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer(lineId(selected))) return; // not ready: 'style.load' draws it
+    drawSurface(map, routes[selected], colorBy === 'surface', selected);
+    stackOverlays(map);
+  }, [colorBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Zoom to a climb when one is picked from the list.
   useEffect(() => {

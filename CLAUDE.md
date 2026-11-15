@@ -76,7 +76,10 @@ Features from the 2026-11-15 research into what other apps miss, best first:
    surface tag), gravel, paved, unknown; plus % on roads/streets. Among close-enough routes,
    more trail wins (`trailWeight` 0.15 -> up to 15 points). Shown as a bar on web cards and a
    line in the CLI. Live forest edge: 41-54% trail, 15-23% unknown (untagged in OSM).
-   Not yet: colouring the route on the map by surface (`surface.sections` is ready for it).
+   Map colouring DONE 2026-11-15: "Route | Surface" toggle on the map (only when the route has
+   surface data, so not for saved GPX files). Selected route drawn per stretch: trail brown,
+   gravel tan, paved grey, unknown dashed; legend with percentages. Colours live in
+   `SURFACE_COLORS` (src/surface.mjs) and match the card bars (globals.css).
 2. DONE 2026-11-15: water + bail-out.
    - Bail-out (`src/bailout.mjs`, no network): farthest point from start, straight-line
      distance back every 1-5 km, and "shortcut" spots mid-run (25-75%) within 1 km of start.

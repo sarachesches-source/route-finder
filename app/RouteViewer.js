@@ -47,6 +47,7 @@ export default function RouteViewer({ savedRoutes }) {
   const [activeClimb, setActiveClimb] = useState(null);
   const [waterFocus, setWaterFocus] = useState(null); // [lon, lat] of a water stop picked in the list
   const [mapStyle, setMapStyle] = useState('topo');
+  const [colorBy, setColorBy] = useState('route'); // selected route: its own colour or by surface
   const [start, setStart] = useState(() =>
     savedRoutes[0] ? { lon: savedRoutes[0].coords[0][0], lat: savedRoutes[0].coords[0][1] } : DEFAULT_START);
   const [searching, setSearching] = useState(false);
@@ -187,6 +188,19 @@ export default function RouteViewer({ savedRoutes }) {
           <button aria-pressed={mapStyle === 'topo'} onClick={() => setMapStyle('topo')}>Topo</button>
           <button aria-pressed={mapStyle === 'streets'} onClick={() => setMapStyle('streets')}>Streets</button>
         </div>
+        {route?.surface && (
+          <div className="style-toggle color-toggle" role="group" aria-label="Route colour">
+            <button aria-pressed={colorBy === 'route'} onClick={() => setColorBy('route')}>Route</button>
+            <button aria-pressed={colorBy === 'surface'} onClick={() => setColorBy('surface')}>Surface</button>
+          </div>
+        )}
+        {route?.surface && colorBy === 'surface' && (
+          <div className="map-legend" aria-label="Surface colours">
+            {SURFACE_GROUPS.filter((g) => route.surface[g] >= 1).map((g) => (
+              <span key={g}><span className={`legend-line ${g}`} />{g} {route.surface[g]}%</span>
+            ))}
+          </div>
+        )}
         <MapView
           routes={routes}
           selected={selected}
@@ -197,6 +211,7 @@ export default function RouteViewer({ savedRoutes }) {
           start={start}
           onSelect={pick}
           onPickStart={searching ? null : setStart}
+          colorBy={route?.surface ? colorBy : 'route'}
         />
       </main>
     </div>

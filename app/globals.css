@@ -187,7 +187,7 @@ button { font: inherit; color: inherit; }
 .search select:disabled { opacity: 0.6; }
 
 /* Surface breakdown */
-:root { --trail: #8a6a3b; --gravel: #b9a47a; --paved: #8c9196; --unknown: #d9d6cc; }
+:root { --trail: #8a5a2b; --gravel: #c9a35f; --paved: #6e7479; --unknown: #d9d6cc; } /* same as SURFACE_COLORS in src/surface.mjs */
 @media (prefers-color-scheme: dark) { :root { --trail: #c49a5c; --gravel: #9c8a64; --paved: #6e7479; --unknown: #3a403c; } }
 .surface { grid-column: 2; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .surface-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--unknown); }
@@ -223,3 +223,17 @@ button { font: inherit; color: inherit; }
 
 .reasons li.sub { font-size: 13px; }
 .reasons li.sub .label { padding-left: 10px; }
+
+/* Route colour toggle and surface legend on the map */
+.color-toggle { left: auto; right: 50px; }
+.map-legend {
+  position: absolute; bottom: 28px; right: 10px; z-index: 2;
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.92); color: #1d2420; border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); font-size: 12px; text-transform: capitalize;
+}
+.legend-line { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.legend-line.trail { background: #8a5a2b; }
+.legend-line.gravel { background: #c9a35f; }
+.legend-line.paved { background: #6e7479; }
+.legend-line.unknown { background: repeating-linear-gradient(90deg, #9a968a 0 5px, transparent 5px 8px); }
