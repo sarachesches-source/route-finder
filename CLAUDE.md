@@ -130,7 +130,12 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 - MapLibre 6 needs its worker file served from `public/`; `npm install` copies it there
   (`scripts/copy-map-worker.mjs`). If the map is blank, run `node scripts/copy-map-worker.mjs`.
 
-## Going online (prepared 2026-11-15, not deployed yet)
+## Online (live since 2026-11-15): https://hillgorithm.vercel.app/
+- Deployed by the owner on Vercel from the GitHub repo (main branch; each push redeploys).
+  ORS_API_KEY is set in Vercel. Checked live: example loads, race example, surface colours,
+  tabs, input checks, no console errors. A real live search was not run yet (costs ~55 requests).
+
+## Going online - how it was prepared
 - `next build` passes. Production-only behaviour: practice mode hidden/ignored, search limits on.
 - Limits (`src/limits.mjs`): SEARCHES_PER_HOUR (5/visitor/hour, visitor = hashed IP) and
   DAILY_REQUEST_BUDGET (1500 ORS requests/day, cache hits don't count). In memory; off in dev

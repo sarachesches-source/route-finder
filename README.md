@@ -2,6 +2,8 @@
 
 **Loops built to your climb.** Trail and ultra running loops that hit your distance *and* your climbing target.
 
+**Live:** [hillgorithm.vercel.app](https://hillgorithm.vercel.app/)
+
 Give it a start point, a distance and how many metres you want to climb. It returns
 three loops that match, tells you how much of each is real trail, where you can refill
 water, and why it picked each one. Training for a mountain race? Upload the race GPX and
