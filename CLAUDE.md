@@ -58,12 +58,19 @@ GPX copies of each run are in `out/live-1-forest-edge/`, `out/live-2-shape-long/
    (strong/partial), loops flipped where better, but climbing -19% to -23%: no loop here reaches
    660 m, and the terrain gives rolling hills, not two big climbs.
 - Data glitch seen: a "+31 m over 0.0 km (84.8%)" climb in route 2 of run 3 - a spike in the
-  elevation data. Climb detection should ignore impossible grades (e.g. > 50% over < 50 m).
+  elevation data.
+- Fixed the same day (rerun from cache, 0 requests; GPX in `out/live-*-v2/`):
+  - Ranking (`rankRoutes` in engine): distance + climbing accuracy first; only routes within
+    10 points of the most accurate are "close enough", and shape / race pattern picks among those.
+  - Spikes: `cleanElevation` replaces points > 8 m off the median of their neighbours
+    (applied to ORS routes and uploaded races).
+  - After: plain 504/480/527 m (+1/-4/+5%). Shape long: climbing now +1/-10/-4%, but shape miss
+    47-65 - there is no 500 m single-climb loop here, and the app now says so instead of hiding
+    it by dropping climbing. Race: still -20 to -27% because nothing here reaches 660 m;
+    pattern picks among the closest.
 
 ## Next task
-Fix the scoring balance found in live checks 2 and 3: climb shape and race pattern should not
-win over the climbing target. Then ignore elevation spikes in climb detection.
-After that, features from the 2026-11-15 research into what other apps miss, best first:
+Features from the 2026-11-15 research into what other apps miss, best first:
 1. Trail % and surface breakdown per route (ORS `extra_info`: surface, waytype, steepness),
    and score mostly-trail routes higher. Same requests, no extra quota (cache keys change once).
 2. Drinking water along the route (OpenStreetMap via Overpass) and bail-out info

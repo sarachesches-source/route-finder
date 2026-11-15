@@ -4,7 +4,7 @@
 // The pattern is the "climbing curve": how much of the total climb is done at each
 // point of the run (0% .. 100% of the distance). Two routes with similar curves
 // have their climbs in the same places, even if one is 50 km and the other 15 km.
-import { routeLength } from './engine.mjs';
+import { routeLength, cleanElevation } from './engine.mjs';
 import { findClimbs } from './climbs.mjs';
 
 export const CURVE_SAMPLES = 50; // curve has CURVE_SAMPLES + 1 points, at 0%, 2%, ... 100%
@@ -67,7 +67,8 @@ export function loopDirection(coords) {
  * Everything the app needs about an uploaded race: size, main climbs, and its pattern.
  * `profile` is a small elevation outline (fraction of distance, 0..1 height) for drawing.
  */
-export function summarizeRace(coords, name = 'Race') {
+export function summarizeRace(rawCoords, name = 'Race') {
+  const coords = cleanElevation(rawCoords); // watch recordings often have elevation blips
   const along = [0];
   for (let i = 1; i < coords.length; i++) along.push(along[i - 1] + routeLength([coords[i - 1], coords[i]]));
   const distanceM = along.at(-1) ?? 0;

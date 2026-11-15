@@ -91,3 +91,27 @@ test('practice mode: fake service gives 3 routes near the target distance', asyn
   assert.equal(r.failed, 0);
   for (const x of r.routes) assert.ok(Math.abs(x.distanceM - 15000) <= 750, `distance ${x.distanceM}`);
 });
+
+test('rankRoutes: climbing accuracy comes first, shape only breaks near-ties', async () => {
+  const { rankRoutes } = await import('../src/engine.mjs');
+  const r = (name, accuracy, extra, distanceM, gainM) => ({ name, accuracy, extra, distanceM, gainM });
+  const routes = [
+    r('accurate, wrong shape', 4, 40, 15000, 510),
+    r('nearly as accurate, right shape', 9, 0, 15300, 480),
+    r('right shape, 25% short on climbing', 30, 0, 14000, 375),
+  ];
+  const picked = rankRoutes(routes, { keep: 3, slack: 10 });
+  assert.deepEqual(picked.map((x) => x.name),
+    ['nearly as accurate, right shape', 'accurate, wrong shape', 'right shape, 25% short on climbing']);
+  assert.equal(picked[2].closeEnough, false);
+});
+
+test('cleanElevation removes a spike but keeps a real climb', async () => {
+  const { cleanElevation, elevationGain } = await import('../src/engine.mjs');
+  const climb = Array.from({ length: 40 }, (_, i) => [23.6 + i * 5e-4, 46.77, 400 + i * 5]); // steady 195 m up
+  assert.deepEqual(cleanElevation(climb), climb);
+  const spiky = Array.from({ length: 40 }, (_, i) => [23.6 + i * 5e-4, 46.77, 400]);
+  spiky[20] = [spiky[20][0], 46.77, 431]; // one bad point, 31 m up
+  assert.equal(elevationGain(spiky), 31);
+  assert.equal(elevationGain(cleanElevation(spiky)), 0);
+});

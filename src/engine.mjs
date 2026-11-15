@@ -19,6 +19,21 @@ export function elevationGain(coords, threshold = 3) {
   return Math.round(gain);
 }
 
+/**
+ * Remove elevation spikes: a point more than `maxJump` metres away from the middle value of
+ * its neighbours (2 each side) gets that middle value. Real slopes change smoothly, so they
+ * pass through untouched; one- or two-point blips in the elevation data (bridges, data
+ * errors) don't count as climbs any more.
+ */
+export function cleanElevation(coords, maxJump = 8) {
+  if (coords.length < 5 || coords[0][2] == null) return coords;
+  return coords.map((c, i) => {
+    const win = coords.slice(Math.max(0, i - 2), i + 3).map((p) => p[2]).sort((a, b) => a - b);
+    const median = win[Math.floor(win.length / 2)];
+    return Math.abs(c[2] - median) > maxJump ? [c[0], c[1], median] : c;
+  });
+}
+
 function haversine(a, b) {
   const R = 6371000, rad = (d) => (d * Math.PI) / 180;
   const dLat = rad(b[1] - a[1]), dLon = rad(b[0] - a[0]);
@@ -79,7 +94,7 @@ async function fetchLoop(job, lengthM, { apiKey, fetchImpl, sleep }) {
     if (!res.ok) throw new Error(`ORS ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const feature = (await res.json()).features?.[0];
     if (!feature) throw new Error('ORS returned no route');
-    const coords = feature.geometry.coordinates;
+    const coords = cleanElevation(feature.geometry.coordinates);
     return {
       kind: job.kind, heading: job.heading, spread: job.spread, seed: job.seed, points: job.points,
       requestedM: Math.round(lengthM), coords,
@@ -116,7 +131,7 @@ async function fetchCorrected(job, target, ctx) {
  */
 export async function findRoutes(target, {
   apiKey, headings = 8, spreads = [25, 60], candidates = 8, corrections = 2,
-  distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
+  distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, accuracySlack = 10, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
 } = {}) {
   if (!apiKey) throw new Error('Missing openrouteservice API key');
   const { lat, lon } = target;
@@ -144,31 +159,48 @@ export async function findRoutes(target, {
   if (!routes.length) throw new Error(`No routes found. First error: ${errors[0]}`);
 
   for (const r of routes) {
-    r.score = score(r, target);
-    // Optional climb shape ('long' | 'rolling' | 'repeats'): profile mismatch adds to the score.
+    r.accuracy = score(r, target); // distance + climbing miss only
+    r.extra = 0;                   // shape / race-pattern miss, used as a tie-breaker
+    // Optional climb shape ('long' | 'rolling' | 'repeats').
     if (target.shape) {
       r.climbs = findClimbs(r.coords);
       r.shapePenalty = shapePenalty(r.climbs, target.shape, { routeGainM: r.gainM });
-      r.score += shapeWeight * r.shapePenalty;
+      r.extra += shapeWeight * r.shapePenalty;
     }
     // Optional race pattern (climbing curve of an uploaded race): try the loop both ways round.
     if (target.pattern) {
       const { penalty, reversed } = bestDirection(r.coords, target.pattern);
       if (reversed) { r.coords = [...r.coords].reverse(); r.reversed = true; }
       r.patternPenalty = penalty;
-      r.score += patternWeight * penalty;
+      r.extra += patternWeight * penalty;
     }
+    r.score = r.accuracy + r.extra;
   }
-  routes.sort((a, b) => a.score - b.score);
-  // Drop near-duplicates so the three results are really different routes.
+  const ranked = rankRoutes(routes, { keep, slack: accuracySlack });
+  return { routes: ranked, all: routes, tried: routes.length, failed: errors.length, errors: errors.slice(0, 3) };
+}
+
+/**
+ * Pick the `keep` best, different routes.
+ * Hitting distance and climbing comes first: only routes within `slack` points of the most
+ * accurate one are "close enough", and among those shape / race pattern decides. So a
+ * preference can never cost more than about `slack`% of accuracy.
+ */
+export function rankRoutes(routes, { keep = 3, slack = 10 } = {}) {
+  const best = Math.min(...routes.map((r) => r.accuracy));
+  for (const r of routes) r.closeEnough = r.accuracy <= best + slack;
+  const sorted = [...routes].sort((a, b) =>
+    (a.closeEnough === b.closeEnough ? 0 : a.closeEnough ? -1 : 1) ||
+    (a.closeEnough ? a.accuracy + a.extra - (b.accuracy + b.extra) : a.accuracy - b.accuracy));
+  // Drop near-duplicates so the results are really different routes.
   const picked = [];
-  for (const r of routes) {
+  for (const r of sorted) {
     const dup = picked.some((p) =>
       Math.abs(p.distanceM - r.distanceM) < 150 && Math.abs(p.gainM - r.gainM) < 15);
     if (!dup) picked.push(r);
     if (picked.length === keep) break;
   }
-  return { routes: picked, all: routes, tried: routes.length, failed: errors.length, errors: errors.slice(0, 3) };
+  return picked;
 }
 
 export function toGpx(route, name = 'Route') {
