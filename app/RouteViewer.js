@@ -130,8 +130,8 @@ export default function RouteViewer({ savedRoutes }) {
         <header className="brand">
           <span className="brand-mark"><LogoIcon size={20} /></span>
           <div>
-            <h1>Route Finder</h1>
-            <p>Trail loops that hit your distance and climbing</p>
+            <h1>Hillgorithm</h1>
+            <p>Loops built to your climb</p>
           </div>
         </header>
 

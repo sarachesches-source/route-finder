@@ -1,6 +1,6 @@
-# Route Finder
+# Hillgorithm
 
-**Trail and ultra running loops that hit your distance *and* your climbing target.**
+**Loops built to your climb.** Trail and ultra running loops that hit your distance *and* your climbing target.
 
 Give it a start point, a distance and how many metres you want to climb. It returns
 three loops that match, tells you how much of each is real trail, where you can refill
@@ -16,7 +16,7 @@ people made. I found none that **builds a loop to a climbing target**. The big r
 planners are also increasingly behind subscriptions, and automatically suggested routes
 tend to send trail runners down roads. This project goes after those gaps:
 
-| Runners' complaint about other apps | What Route Finder does |
+| Runners' complaint about other apps | What Hillgorithm does |
 |---|---|
 | Can't ask for "15 km with 500 m of climbing" | Searches dozens of loops and ranks them on both numbers |
 | Suggested routes use busy roads | Shows trail / gravel / paved / road share and prefers trail |

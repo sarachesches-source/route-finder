@@ -7,7 +7,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin', 'latin-ext'], display: 'swap', variable: '--font-inter' });
 
 export const metadata = {
-  title: 'Route Finder',
+  title: 'Hillgorithm · Loops built to your climb',
   description: 'Trail and ultra running loops that hit your distance and climbing targets.',
 };
 

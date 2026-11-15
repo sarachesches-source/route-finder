@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
  * folder) a temp folder, which is wiped now and then; otherwise .cache/ in the project.
  */
 export function cacheDir(name) {
-  const root = process.env.CACHE_DIR || (process.env.VERCEL ? path.join(tmpdir(), 'route-finder-cache') : '.cache');
+  const root = process.env.CACHE_DIR || (process.env.VERCEL ? path.join(tmpdir(), 'hillgorithm-cache') : '.cache');
   return path.join(root, name);
 }
 

@@ -12,7 +12,7 @@ const dayKey = (t) => new Date(t).toISOString().slice(0, 10);
 /** Visitor key from request headers: a short hash, so no IP address is ever stored. */
 export function visitorKey(headers) {
   const ip = headers.get('x-forwarded-for')?.split(',')[0].trim() || headers.get('x-real-ip') || 'local';
-  return createHash('sha256').update(`route-finder:${ip}`).digest('hex').slice(0, 16);
+  return createHash('sha256').update(`hillgorithm:${ip}`).digest('hex').slice(0, 16);
 }
 
 export function createLimiter({ perHour = 5, dailyBudget = 1500, now = Date.now } = {}) {

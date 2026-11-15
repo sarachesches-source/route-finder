@@ -1,4 +1,8 @@
-# Running route app
+# Hillgorithm (running route app)
+
+Name chosen 2026-11-15: **Hillgorithm**, tagline "Loops built to your climb" (clear of existing
+running apps; hillgorithm .com/.app/.run/.io had no DNS then - not bought). GitHub repo is still
+`route-finder` (private): github.com/sarachesches-source/route-finder.
 
 AI route finder for trail and ultra runners: give a start point, a distance and a
 climbing target, get three loops that hit both numbers. Inspired by trackscout.net.

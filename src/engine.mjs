@@ -220,7 +220,7 @@ export function toGpx(route, name = 'Route') {
     .map(([lon, lat, ele]) => `      <trkpt lat="${lat}" lon="${lon}"><ele>${ele ?? 0}</ele></trkpt>`)
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="running-app" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="Hillgorithm" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>${name}</name>
     <trkseg>

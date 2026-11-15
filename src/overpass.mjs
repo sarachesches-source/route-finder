@@ -10,7 +10,7 @@ export const OVERPASS_SERVERS = [
   'https://overpass.private.coffee/api/interpreter',
 ];
 // Overpass asks apps to identify themselves. Generic name only - no personal details.
-const USER_AGENT = 'RouteFinder/0.1 (trail running route planner, hobby project)';
+const USER_AGENT = 'Hillgorithm/0.1 (trail running route planner, hobby project)';
 
 const overpassFetch = cachedFetch(fetch, { dir: cacheDir('overpass'), maxAgeDays: 7 });
 
