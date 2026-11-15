@@ -3,7 +3,8 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { parseGpx, gpxName } from '../src/gpx.mjs';
-import { summarizeRoute } from '../src/summary.mjs';
+import { summarizeRoute, attachWater } from '../src/summary.mjs';
+import { findWater } from '../src/water-sources.mjs';
 import RouteViewer from './RouteViewer';
 
 export const dynamic = 'force-dynamic'; // re-read out/ on every page load
@@ -21,6 +22,12 @@ function loadRoutes() {
     .filter((r) => r.coords.length > 1);
 }
 
-export default function Home() {
-  return <RouteViewer savedRoutes={loadRoutes()} />;
+export default async function Home() {
+  const routes = loadRoutes();
+  // Saved files sit outside out/practice, so they're real routes: look up real water (cached a week).
+  // Short time limit: a busy water server must not hold up the page.
+  if (routes.length) {
+    attachWater(routes, await findWater(routes.map((r) => r.coords), { apiKey: process.env.ORS_API_KEY, timeLimitMs: 5000 }));
+  }
+  return <RouteViewer savedRoutes={routes} />;
 }

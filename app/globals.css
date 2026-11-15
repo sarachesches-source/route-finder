@@ -198,3 +198,13 @@ button { font: inherit; color: inherit; }
 .seg.unknown, .swatch.unknown { background: var(--unknown); }
 .surface-text { font-size: 12px; color: var(--muted); }
 .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+
+/* Water & bail-out */
+:root { --water: #2a7ab0; }
+@media (prefers-color-scheme: dark) { :root { --water: #5aa9dd; } }
+.wb { display: flex; flex-direction: column; gap: 10px; }
+.wb p { margin: 0; font-size: 14px; }
+.drop { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--water); margin-right: 6px; }
+.bailout { display: flex; flex-direction: column; gap: 6px; }
+.checkpoints { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }

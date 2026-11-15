@@ -2,8 +2,9 @@
 // Runs the route search on the server, so the openrouteservice key never reaches the browser.
 import { findRoutes } from '../../../src/engine.mjs';
 import { SHAPES } from '../../../src/climbs.mjs';
-import { summarizeRoute } from '../../../src/summary.mjs';
-import { fakeOrsFetch } from '../../../src/fake-ors.mjs';
+import { summarizeRoute, attachWater } from '../../../src/summary.mjs';
+import { fakeOrsFetch, fakeWaterPoints } from '../../../src/fake-ors.mjs';
+import { findWater } from '../../../src/water-sources.mjs';
 import { cachedFetch } from '../../../src/ors-cache.mjs';
 import { isValidCurve, loopDirection } from '../../../src/rehearsal.mjs';
 
@@ -56,6 +57,9 @@ export async function POST(request) {
       score: r.score, shapePenalty: r.shapePenalty,
       patternPenalty: r.patternPenalty, direction: loopDirection(r.coords), surface: r.surface ?? null,
     }));
+    // Water stops along the results (OpenStreetMap via openrouteservice, cached; made up in practice mode).
+    const coordLists = routes.map((r) => r.coords);
+    attachWater(routes, practice ? fakeWaterPoints(coordLists) : await findWater(coordLists, { apiKey }));
     return Response.json({ routes, tried: result.tried, failed: result.failed, practice, requests: fetchImpl.stats ?? null });
   } catch (e) {
     return fail(502, friendly(e.message));

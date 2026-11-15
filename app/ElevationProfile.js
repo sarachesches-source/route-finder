@@ -15,7 +15,8 @@ function nearestIndex(along, d) {
 
 // `ghost`: optional race outline [[fraction of distance, 0..1 height], ...], drawn dashed and
 // stretched over this route so the two climb patterns can be compared by eye.
-export default function ElevationProfile({ route, color, hoverIdx, onHover, activeClimb, ghost }) {
+// `water`: optional water stops [{ km }, ...], drawn as blue ticks along the top.
+export default function ElevationProfile({ route, color, hoverIdx, onHover, activeClimb, ghost, water }) {
   const { coords, along, climbs } = route;
   const distanceM = along.at(-1) || 1; // chart length = measured along the points
   const ele = coords.map((c) => c[2]);
@@ -64,6 +65,10 @@ export default function ElevationProfile({ route, color, hoverIdx, onHover, acti
             />
           ))}
           <path d={area} fill="var(--profile-fill)" />
+          {water?.map((s, i) => (
+            <line key={`w${i}`} x1={x(s.km * 1000)} x2={x(s.km * 1000)} y1={0} y2={14}
+              stroke="var(--water)" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          ))}
           {ghostLine && (
             <path d={ghostLine} fill="none" stroke="var(--profile-line)" strokeWidth="1.5" strokeDasharray="5 4"
               opacity="0.6" vectorEffect="non-scaling-stroke" />

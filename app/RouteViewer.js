@@ -44,13 +44,14 @@ export default function RouteViewer({ savedRoutes }) {
   const [selected, setSelected] = useState(0);
   const [hoverIdx, setHoverIdx] = useState(null);
   const [activeClimb, setActiveClimb] = useState(null);
+  const [waterFocus, setWaterFocus] = useState(null); // [lon, lat] of a water stop picked in the list
   const [mapStyle, setMapStyle] = useState('topo');
   const [start, setStart] = useState(() =>
     savedRoutes[0] ? { lon: savedRoutes[0].coords[0][0], lat: savedRoutes[0].coords[0][1] } : DEFAULT_START);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
 
-  const pick = useCallback((i) => { setSelected(i); setActiveClimb(null); setHoverIdx(null); }, []);
+  const pick = useCallback((i) => { setSelected(i); setActiveClimb(null); setHoverIdx(null); setWaterFocus(null); }, []);
 
   async function search(params) {
     setSearching(true); setError(null);
@@ -145,6 +146,7 @@ export default function RouteViewer({ savedRoutes }) {
                 onHover={setHoverIdx}
                 activeClimb={climb}
                 ghost={target?.race && route.patternPenalty != null ? target.race.profile : null}
+                water={route.water?.stops}
               />
             </section>
 
@@ -164,6 +166,11 @@ export default function RouteViewer({ savedRoutes }) {
               ) : <p className="muted">No climbs over 30 m.</p>}
             </section>
 
+            <section>
+              <h2>Water &amp; bail-out</h2>
+              <WaterAndBailout route={route} onPickWater={(s) => { setActiveClimb(null); setWaterFocus([s.lon, s.lat]); }} />
+            </section>
+
             <button className="download" onClick={() => download(route)}>Download GPX</button>
           </>
         )}
@@ -179,13 +186,59 @@ export default function RouteViewer({ savedRoutes }) {
           selected={selected}
           colors={ROUTE_COLORS}
           hoverPoint={route && hoverIdx != null ? route.coords[hoverIdx] : null}
-          focus={climb ? sliceByDistance(route, climb.startM, climb.endM) : null}
+          focus={climb ? sliceByDistance(route, climb.startM, climb.endM) : waterFocus ? [waterFocus, waterFocus] : null}
           mapStyle={mapStyle}
           start={start}
           onSelect={pick}
           onPickStart={searching ? null : setStart}
         />
       </main>
+    </div>
+  );
+}
+
+const km = (m) => (m / 1000).toFixed(1);
+
+/** Water stops along the route, how far from the start you get, and places to cut it short. */
+function WaterAndBailout({ route, onPickWater }) {
+  const { water, bailout } = route;
+  return (
+    <div className="wb">
+      {water == null ? (
+        <p className="muted">Couldn’t load water points right now (the OpenStreetMap server is busy). Try again later.</p>
+      ) : water.stops.length ? (
+        <>
+          <ul className="climbs">
+            {water.stops.map((s, i) => (
+              <li key={i}>
+                <button onClick={() => onPickWater(s)}>
+                  <span><span className="drop" aria-hidden="true" />km {s.km.toFixed(1)} · {s.kind}{s.name ? ` (${s.name})` : ''}</span>
+                  <span className="muted">{s.offM} m off{s.checkFirst ? ' · check it’s drinkable' : ''}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">Longest stretch without water: {water.longestDryKm.toFixed(1)} km.</p>
+        </>
+      ) : (
+        <p className="muted">No mapped water within 150 m of this route. Carry what you need.</p>
+      )}
+      {bailout && (
+        <div className="bailout">
+          <p>
+            Farthest from the start: <strong>{km(bailout.farthest.backM)} km</strong> away at km {bailout.farthest.km.toFixed(1)}.
+          </p>
+          {bailout.shortcuts.map((s, i) => (
+            <p key={i}>Cut it short at <strong>km {s.km.toFixed(1)}</strong>: you pass {km(s.backM)} km from the start.</p>
+          ))}
+          <div className="checkpoints">
+            {bailout.checkpoints.map((c) => (
+              <span key={c.km} className="chip">km {c.km.toFixed(0)} · {km(c.backM)} back</span>
+            ))}
+          </div>
+          <p className="hint">Distances back are in a straight line; the real way back is longer.</p>
+        </div>
+      )}
     </div>
   );
 }

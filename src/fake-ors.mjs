@@ -76,3 +76,20 @@ export async function fakeOrsFetch(_url, init) {
     json: async () => ({ features: [{ geometry: { type: 'LineString', coordinates: coords }, properties: { summary: { distance: routeLength(coords) }, extras } }] }),
   };
 }
+
+/** Practice mode water: a made-up drinking fountain about every 4 km, 40 m off each route. */
+export function fakeWaterPoints(coordLists) {
+  const points = [];
+  for (const coords of coordLists) {
+    let since = 0;
+    for (let i = 1; i < coords.length; i++) {
+      since += routeLength([coords[i - 1], coords[i]]);
+      if (since >= 4000) {
+        since = 0;
+        const [lon, lat] = offsetPoint(coords[i][0], coords[i][1], 0, 40);
+        points.push({ lon, lat, kind: 'drinking fountain', name: 'Practice fountain', checkFirst: false });
+      }
+    }
+  }
+  return points;
+}

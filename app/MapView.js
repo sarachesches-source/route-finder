@@ -56,6 +56,24 @@ function drawRoutes(map, { routes, selected, colors }) {
     });
   });
   highlight(map, routes.length, selected);
+  drawWater(map, routes[selected]);
+}
+
+/** Blue dots for the selected route's water stops. */
+function drawWater(map, route) {
+  const data = {
+    type: 'FeatureCollection',
+    features: (route?.water?.stops ?? []).map((s) => ({
+      type: 'Feature', geometry: { type: 'Point', coordinates: [s.lon, s.lat] }, properties: {},
+    })),
+  };
+  const source = map.getSource('water');
+  if (source) { source.setData(data); return; }
+  map.addSource('water', { type: 'geojson', data });
+  map.addLayer({
+    id: 'water-dots', type: 'circle', source: 'water',
+    paint: { 'circle-radius': 6, 'circle-color': '#2a7ab0', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 },
+  });
 }
 
 function highlight(map, count, selected) {
@@ -140,6 +158,8 @@ export default function MapView({ routes, selected, colors, hoverPoint, focus, m
     const map = mapRef.current;
     if (!map) return;
     highlight(map, routes.length, selected);
+    // Only once the routes are drawn (map ready); before that, 'style.load' draws the water.
+    if (map.getLayer(lineId(selected))) { drawWater(map, routes[selected]); map.moveLayer('water-dots'); }
     if (!didSelect.current) { didSelect.current = true; return; } // first view shows all routes
     if (routes[selected]) map.fitBounds(boundsOf(routes[selected].coords), { padding: 50, duration: 600 });
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps

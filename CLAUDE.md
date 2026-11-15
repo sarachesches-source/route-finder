@@ -77,8 +77,21 @@ Features from the 2026-11-15 research into what other apps miss, best first:
    more trail wins (`trailWeight` 0.15 -> up to 15 points). Shown as a bar on web cards and a
    line in the CLI. Live forest edge: 41-54% trail, 15-23% unknown (untagged in OSM).
    Not yet: colouring the route on the map by surface (`surface.sections` is ready for it).
-2. Drinking water along the route (OpenStreetMap via Overpass) and bail-out info
-   ("at km 9 you're 2.1 km from the start").
+2. DONE 2026-11-15: water + bail-out.
+   - Bail-out (`src/bailout.mjs`, no network): farthest point from start, straight-line
+     distance back every 1-5 km, and "shortcut" spots mid-run (25-75%) within 1 km of start.
+   - Water (`src/water.mjs` pure, `src/water-sources.mjs` fetch): drinking fountains, water
+     points, springs within 150 m of each route. Source 1: openrouteservice POIs (same key,
+     categories 166/565 fountain, 182 water point, 338 spring), one request per route, cached
+     7 days in `.cache/ors-pois/`. Source 2 fallback: Overpass (`src/overpass.mjs`, two public
+     servers) - on 2026-11-15 both were too busy to answer, so don't rely on it.
+     12 s limit for searches, 5 s for page load; failure shows "couldn't load", never an error.
+     Springs / water points are marked "check it's drinkable".
+   - UI: "Water & bail-out" section, blue ticks on the elevation chart, blue dots on the map;
+     click a water stop to zoom to it. Practice mode invents a fountain every ~4 km.
+   - Live forest edge: spring "Izvorul Hóvirág" km 6.4 on route 1, fountain km 4.3 on route 3,
+     none on route 2 (14.7 km dry).
+   - Not yet: way back by real paths (needs an ORS request), nearest road for pickup.
 3. "Why this route" breakdown and steep-section warnings on each card.
 4. Race rehearsal: also match descents and steepness, not just where the climbing comes.
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
@@ -100,7 +113,7 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
 ## Commands
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
-- Tests: `npm test` (engine, climbs, cache, rehearsal, surface)
+- Tests: `npm test` (engine, climbs, cache, rehearsal, surface, water)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
 - Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`)
   Optional: `--headings 8 --candidates 8` (compass directions / random round trips),
