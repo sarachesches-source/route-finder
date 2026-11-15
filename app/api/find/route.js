@@ -54,7 +54,8 @@ export async function POST(request) {
     const routes = result.routes.map((r, i) => summarizeRoute(r.coords, {
       name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
       distanceM: r.distanceM, kind: r.kind, heading: r.heading, seed: r.seed,
-      score: r.score, shapePenalty: r.shapePenalty,
+      score: r.score, accuracy: r.accuracy, extra: r.extra, closeEnough: r.closeEnough,
+      shapePenalty: r.shapePenalty,
       patternPenalty: r.patternPenalty, direction: loopDirection(r.coords), surface: r.surface ?? null,
     }));
     // Water stops along the results (OpenStreetMap via openrouteservice, cached; made up in practice mode).

@@ -208,3 +208,15 @@ button { font: inherit; color: inherit; }
 .bailout { display: flex; flex-direction: column; gap: 6px; }
 .checkpoints { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Why this route */
+.why { display: flex; flex-direction: column; gap: 8px; }
+.why p { margin: 0; }
+.rank-note { font-size: 14px; font-weight: 600; }
+.reasons, .warnings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.reasons li { display: grid; grid-template-columns: 16px 96px 1fr; gap: 6px; align-items: baseline; }
+.reasons .label { color: var(--muted); }
+.reasons .pro .mark { color: var(--good); font-weight: 700; }
+.reasons .con .mark { color: var(--error); font-weight: 700; }
+.reasons .mark { color: var(--muted); }
+.warnings li { background: rgba(217, 98, 43, 0.12); border-radius: 6px; padding: 6px 8px; }

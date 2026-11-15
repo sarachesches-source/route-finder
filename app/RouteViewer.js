@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import ElevationProfile from './ElevationProfile';
 import SearchForm from './SearchForm';
 import { SURFACE_GROUPS } from '../src/surface.mjs';
+import { explainRoute } from '../src/explain.mjs';
 import { toGpx } from '../src/engine.mjs';
 
 // The map library needs a real browser, so it's only loaded there.
@@ -138,6 +139,11 @@ export default function RouteViewer({ savedRoutes }) {
         {route && (
           <>
             <section>
+              <h2>Why this route</h2>
+              <WhyThisRoute route={route} target={target} routes={routes} />
+            </section>
+
+            <section>
               <h2>Elevation</h2>
               <ElevationProfile
                 route={route}
@@ -198,6 +204,34 @@ export default function RouteViewer({ savedRoutes }) {
 }
 
 const km = (m) => (m / 1000).toFixed(1);
+
+/** Plain-language ranking reasons and warnings for the selected route. */
+function WhyThisRoute({ route, target, routes }) {
+  const { rankNote, reasons, warnings, notes } = explainRoute(route, target, routes);
+  return (
+    <div className="why">
+      {rankNote && <p className="rank-note">{rankNote}</p>}
+      {reasons.length > 0 && (
+        <ul className="reasons">
+          {reasons.map((r) => (
+            <li key={r.label} className={r.good === true ? 'pro' : r.good === false ? 'con' : ''}>
+              <span className="mark" aria-hidden="true">{r.good === true ? '✓' : r.good === false ? '✗' : '•'}</span>
+              <span className="label">{r.label}</span>
+              <span>{r.value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {warnings.length > 0 && (
+        <ul className="warnings">
+          {warnings.map((w) => <li key={w}><span aria-hidden="true">⚠</span> {w}</li>)}
+        </ul>
+      )}
+      {notes.length > 0 && <p className="hint">{notes.join(' ')}</p>}
+      {!target && <p className="hint">Search to see how this compares with your targets.</p>}
+    </div>
+  );
+}
 
 /** Water stops along the route, how far from the start you get, and places to cut it short. */
 function WaterAndBailout({ route, onPickWater }) {

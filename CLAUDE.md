@@ -92,7 +92,13 @@ Features from the 2026-11-15 research into what other apps miss, best first:
    - Live forest edge: spring "Izvorul Hóvirág" km 6.4 on route 1, fountain km 4.3 on route 3,
      none on route 2 (14.7 km dry).
    - Not yet: way back by real paths (needs an ORS request), nearest road for pickup.
-3. "Why this route" breakdown and steep-section warnings on each card.
+3. DONE 2026-11-15: "Why this route" card (`src/explain.mjs`, shown for the selected route).
+   Rank sentence ("Closest of all..." / "Nearly as close... N points behind, with more trail" /
+   "shown as an alternative"), ✓/✗ for distance, climbing, shape, race pattern, trail share,
+   warnings (steepest 200 m climb or descent >= 20%, >= 25% on roads, >= 30% unknown surface,
+   no water on 10 km+, 10 km+ dry stretch) and notes (steepest climb, shortcut, water stops).
+   API now also sends accuracy / extra / closeEnough per result.
+   Live forest edge route 1: steep climb 22% at km 8.4, steep descent 21% at km 6.7.
 4. Race rehearsal: also match descents and steepness, not just where the climbing comes.
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
 Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
@@ -113,7 +119,7 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
 ## Commands
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
-- Tests: `npm test` (engine, climbs, cache, rehearsal, surface, water)
+- Tests: `npm test` (engine, climbs, cache, rehearsal, surface, water, explain)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
 - Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`)
   Optional: `--headings 8 --candidates 8` (compass directions / random round trips),
