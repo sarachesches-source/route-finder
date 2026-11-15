@@ -126,6 +126,19 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 - MapLibre 6 needs its worker file served from `public/`; `npm install` copies it there
   (`scripts/copy-map-worker.mjs`). If the map is blank, run `node scripts/copy-map-worker.mjs`.
 
+## Going online (prepared 2026-11-15, not deployed yet)
+- `next build` passes. Production-only behaviour: practice mode hidden/ignored, search limits on.
+- Limits (`src/limits.mjs`): SEARCHES_PER_HOUR (5/visitor/hour, visitor = hashed IP) and
+  DAILY_REQUEST_BUDGET (1500 ORS requests/day, cache hits don't count). In memory; off in dev
+  unless set. Tested with a temporary limit of 2: third search got the friendly 429.
+- Cache folder: `cacheDir()` in `src/ors-cache.mjs` - CACHE_DIR, else temp folder on Vercel, else .cache.
+- Example searches: `public/examples/*.json` (forest edge, race rehearsal), made by
+  `node scripts/make-examples.mjs` from cache. Auto-load when there are no saved routes
+  (which is the case online, since out/ isn't deployed). "Examples" chips under the form.
+- `src/search.mjs` = one full search (engine + summary + water), shared by API and script.
+- Next step needs the owner: create a GitHub repo + Vercel account, add ORS_API_KEY in Vercel.
+  Never push or deploy without being asked. Check the host's function time limit (~2 min searches).
+
 ## Git
 - Repo in this folder, branch `main`, no remote (local only). First commit 2026-11-14.
 - `.env` (API key), `out/`, `node_modules/`, `.next/` are ignored - never commit the key.

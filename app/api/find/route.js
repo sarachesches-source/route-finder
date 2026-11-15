@@ -1,12 +1,14 @@
 // POST /api/find  { lat, lon, km, vert, shape?, race?: { curve, name }, practice? }
 // Runs the route search on the server, so the openrouteservice key never reaches the browser.
-import { findRoutes } from '../../../src/engine.mjs';
 import { SHAPES } from '../../../src/climbs.mjs';
-import { summarizeRoute, attachWater } from '../../../src/summary.mjs';
-import { fakeOrsFetch, fakeWaterPoints } from '../../../src/fake-ors.mjs';
-import { findWater } from '../../../src/water-sources.mjs';
+import { fakeOrsFetch } from '../../../src/fake-ors.mjs';
+import { runSearch } from '../../../src/search.mjs';
 import { cachedFetch } from '../../../src/ors-cache.mjs';
-import { isValidCurve, isValidMix, loopDirection } from '../../../src/rehearsal.mjs';
+import { isValidCurve, isValidMix } from '../../../src/rehearsal.mjs';
+import { serverLimiter, visitorKey } from '../../../src/limits.mjs';
+
+const IS_DEV = process.env.NODE_ENV !== 'production';
+const FALLBACK = IS_DEV ? 'switch on practice mode' : 'try one of the example searches';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // a search with rate-limit waits can take a couple of minutes
@@ -16,9 +18,9 @@ const fail = (status, error) => Response.json({ error }, { status });
 /** Turn routing-service errors into something a runner can act on. */
 function friendly(message) {
   if (/quota exceeded/i.test(message) || /ORS 403/.test(message)) {
-    return 'Daily openrouteservice limit reached. Try again tomorrow, or switch on practice mode.';
+    return `Daily route-search limit reached. Try again tomorrow, or ${FALLBACK}.`;
   }
-  if (/ORS 401/.test(message)) return 'openrouteservice rejected the API key. Check ORS_API_KEY in .env.';
+  if (/ORS 401/.test(message)) return 'openrouteservice rejected the API key. Check the ORS_API_KEY setting.';
   if (/ORS 404|ORS 2010|could not find routable point/i.test(message)) {
     return 'No paths found near that start point. Try moving it onto a road or trail.';
   }
@@ -46,29 +48,31 @@ export async function POST(request) {
   }
 
   // Practice mode only exists while developing, never on a deployed site.
-  const practice = body.practice === true && process.env.NODE_ENV !== 'production';
+  const practice = body.practice === true && IS_DEV;
   const apiKey = practice ? 'practice' : process.env.ORS_API_KEY;
-  if (!apiKey) return fail(500, 'No openrouteservice key: add ORS_API_KEY to .env.');
+  if (!apiKey) return fail(500, 'No openrouteservice key: set ORS_API_KEY.');
+
+  // Public site: per-visitor and daily limits on real searches (see src/limits.mjs).
+  const limiter = practice ? null : serverLimiter();
+  const visitor = limiter ? visitorKey(request.headers) : null;
+  if (limiter) {
+    const verdict = limiter.check(visitor);
+    if (!verdict.ok) {
+      return fail(429, verdict.reason === 'daily'
+        ? `The site has used today's route searches. Try again tomorrow, or ${FALLBACK}.`
+        : `You've reached the search limit for now. Try again in ${verdict.retryInMin} min, or ${FALLBACK}.`);
+    }
+    limiter.record(visitor);
+  }
 
   // Real searches go through the disk cache, so repeating one costs no quota.
   const fetchImpl = practice ? fakeOrsFetch : cachedFetch(fetch);
   try {
-    const result = await findRoutes(
-      { lat, lon, distanceM: km * 1000, gainM: vert, shape, pattern: pattern ?? undefined },
-      practice ? { apiKey, fetchImpl, sleep: async () => {} } : { apiKey, fetchImpl },
-    );
-    const routes = result.routes.map((r, i) => summarizeRoute(r.coords, {
-      name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
-      distanceM: r.distanceM, kind: r.kind, heading: r.heading, seed: r.seed,
-      score: r.score, accuracy: r.accuracy, extra: r.extra, closeEnough: r.closeEnough,
-      shapePenalty: r.shapePenalty, patternParts: r.patternParts,
-      patternPenalty: r.patternPenalty, direction: loopDirection(r.coords), surface: r.surface ?? null,
-    }));
-    // Water stops along the results (OpenStreetMap via openrouteservice, cached; made up in practice mode).
-    const coordLists = routes.map((r) => r.coords);
-    attachWater(routes, practice ? fakeWaterPoints(coordLists) : await findWater(coordLists, { apiKey }));
-    return Response.json({ routes, tried: result.tried, failed: result.failed, practice, requests: fetchImpl.stats ?? null });
+    const result = await runSearch({ lat, lon, km, vert, shape, pattern }, { practice, apiKey, fetchImpl });
+    return Response.json({ ...result, practice });
   } catch (e) {
     return fail(502, friendly(e.message));
+  } finally {
+    if (limiter && fetchImpl.stats) limiter.spend(fetchImpl.stats.misses); // only real requests count
   }
 }

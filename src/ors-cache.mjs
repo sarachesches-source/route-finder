@@ -3,12 +3,22 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
+
+/**
+ * Where cached answers live: CACHE_DIR if set; on Vercel (read-only disk except the temp
+ * folder) a temp folder, which is wiped now and then; otherwise .cache/ in the project.
+ */
+export function cacheDir(name) {
+  const root = process.env.CACHE_DIR || (process.env.VERCEL ? path.join(tmpdir(), 'route-finder-cache') : '.cache');
+  return path.join(root, name);
+}
 
 /**
  * Wrap a fetch function with a disk cache. Only successful answers are saved.
  * The returned function has `.stats` = { hits, misses } for reporting.
  */
-export function cachedFetch(fetchImpl, { dir = '.cache/ors', maxAgeDays = 30 } = {}) {
+export function cachedFetch(fetchImpl, { dir = cacheDir('ors'), maxAgeDays = 30 } = {}) {
   const stats = { hits: 0, misses: 0 };
   const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
 

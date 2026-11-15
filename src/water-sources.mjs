@@ -3,14 +3,14 @@
 //     water within `bufferM` of each route line. One request per route, cached a week.
 //  2. Fallback: the free Overpass API (volunteer servers, often busy).
 // Both read OpenStreetMap data. Returns [{ lon, lat, kind, name, checkFirst }] or null.
-import { cachedFetch } from './ors-cache.mjs';
+import { cachedFetch, cacheDir } from './ors-cache.mjs';
 import { fetchWaterPoints } from './overpass.mjs';
 
 const POIS_URL = 'https://api.openrouteservice.org/pois';
 // openrouteservice POI categories (from its "list" request).
 const CATEGORY_KIND = { 166: 'drinking fountain', 565: 'drinking fountain', 182: 'water point', 338: 'spring' };
 
-const poiFetch = cachedFetch(fetch, { dir: '.cache/ors-pois', maxAgeDays: 7 });
+const poiFetch = cachedFetch(fetch, { dir: cacheDir('ors-pois'), maxAgeDays: 7 });
 
 /** At most `max` points of a route, evenly spread, start and end kept. */
 function thin(coords, max = 150) {

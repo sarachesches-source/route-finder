@@ -5,3 +5,4 @@ node_modules/
 next-env.d.ts
 public/maplibre-gl-worker.mjs
 .cache/
+.env*.local

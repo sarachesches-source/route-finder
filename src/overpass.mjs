@@ -1,7 +1,7 @@
 // Fetch water points from OpenStreetMap's Overpass API (free, no key), with a disk cache.
 // Server/CLI only. Overpass servers are run by volunteers and are often busy, so:
 // one request per search, cached a week, a fallback server, and a strict time limit.
-import { cachedFetch } from './ors-cache.mjs';
+import { cachedFetch, cacheDir } from './ors-cache.mjs';
 import { boundsOf, waterQuery, parseWater } from './water.mjs';
 
 // Public Overpass servers, tried in order (see wiki.openstreetmap.org/wiki/Overpass_API).
@@ -12,7 +12,7 @@ export const OVERPASS_SERVERS = [
 // Overpass asks apps to identify themselves. Generic name only - no personal details.
 const USER_AGENT = 'RouteFinder/0.1 (trail running route planner, hobby project)';
 
-const overpassFetch = cachedFetch(fetch, { dir: '.cache/overpass', maxAgeDays: 7 });
+const overpassFetch = cachedFetch(fetch, { dir: cacheDir('overpass'), maxAgeDays: 7 });
 
 /**
  * Water points in the box around these routes, or null if no server answered in time.

@@ -54,3 +54,18 @@ test('errors are not cached, and old answers expire', async () => {
     assert.deepEqual(await (await g('u', { body: 'q' })).json(), { n: 2 }); // expired: asked again
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('cache folder: .cache locally, CACHE_DIR when set, temp folder on Vercel', async () => {
+  const { cacheDir } = await import('../src/ors-cache.mjs');
+  const saved = { CACHE_DIR: process.env.CACHE_DIR, VERCEL: process.env.VERCEL };
+  try {
+    delete process.env.CACHE_DIR; delete process.env.VERCEL;
+    assert.equal(cacheDir('ors'), path.join('.cache', 'ors'));
+    process.env.VERCEL = '1';
+    assert.ok(cacheDir('ors').startsWith(tmpdir()));
+    process.env.CACHE_DIR = '/data/cache';
+    assert.equal(cacheDir('ors'), path.join('/data/cache', 'ors'));
+  } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+});

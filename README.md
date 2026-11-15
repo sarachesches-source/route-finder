@@ -41,6 +41,7 @@ tend to send trail runners down roads. This project goes after those gaps:
   (same metres per km), and routes are scored on where the climbs come, where the descents
   come and how steep the race is. Loops are tried both ways round ("run it clockwise").
 - **Elevation profile** linked to the map, a climb list, and **GPX download** for any watch.
+- **Example searches** that load instantly, so the public site always shows real results.
 - **Practice mode** for development: invented terrain, no API use.
 
 ![Why this route, elevation profile and climbs](docs/screenshots/why-this-route.png)
@@ -107,14 +108,41 @@ node analyze-gpx.mjs out/route-1.gpx      # climbs and shape of any GPX, no API 
 Options: `--shape long|rolling|repeats`, `--race file.gpx`, `--practice`, `--no-cache`,
 `--headings 8 --candidates 8`. GPX files are written to `out/` (`out/practice/` in practice mode).
 
+## Deploying (e.g. Vercel)
+
+The app is a standard Next.js project, so any Node host works. On [Vercel](https://vercel.com/):
+
+1. Push the project to a GitHub repository (`.env` stays out of it).
+2. In Vercel, **Add New → Project**, import the repository, and keep the detected Next.js settings.
+3. Under **Settings → Environment Variables**, add `ORS_API_KEY` (and optionally the limits below).
+4. Deploy. The site opens on a ready-made example, so visitors see results straight away.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `ORS_API_KEY` | required | openrouteservice key, used only on the server |
+| `SEARCHES_PER_HOUR` | 5 | real searches per visitor per hour |
+| `DAILY_REQUEST_BUDGET` | 1500 | stop new searches after this many routing requests in a day (free plan ≈ 2,000) |
+| `CACHE_DIR` | `.cache` (temp folder on Vercel) | where saved routing answers are kept |
+
+Good to know:
+
+- **Searches can take up to about 2 minutes** (openrouteservice allows ~40 requests a minute),
+  so the host's time limit for server functions must allow that.
+- **Limits and cache live in server memory / a temp folder.** On serverless hosting they reset
+  now and then and each running copy counts separately: enough to stop accidents and casual
+  abuse, not a hard guarantee. A shared store (e.g. Redis) would make them exact.
+- **Practice mode is development-only**; visitors get the example searches instead.
+- **Refresh the examples** after changing the engine: run the same searches once, then
+  `node scripts/make-examples.mjs` (it reads from the cache, so it uses no quota).
+
 ### Tests
 
 ```bash
 npm test
 ```
 
-36 tests cover the route engine, climb detection, caching, race matching, surfaces,
-water and bail-out, and the explanations, using a fake routing service.
+41 tests cover the route engine, climb detection, caching, race matching, surfaces,
+water and bail-out, explanations and search limits, using a fake routing service.
 
 ## Project structure
 

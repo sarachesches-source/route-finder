@@ -1,7 +1,7 @@
 'use client';
 // The whole screen: brand bar, "Plan your run" form, results and route details on the left,
 // map on the right (on phones: map on top).
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import ElevationProfile from './ElevationProfile';
 import SearchForm from './SearchForm';
@@ -17,6 +17,12 @@ const MapView = dynamic(() => import('./MapView'), { ssr: false });
 
 export const ROUTE_COLORS = ['#d9622b', '#2a7ab0', '#7a9a2e', '#8e44ad', '#c0392b', '#16a085'];
 const DEFAULT_START = { lat: 46.7712, lon: 23.6236 }; // central Cluj-Napoca
+
+// Ready-made searches in public/examples (made by scripts/make-examples.mjs from real results).
+const EXAMPLES = [
+  { id: 'forest-edge', label: '15 km · 500 m near Cluj' },
+  { id: 'race-rehearsal', label: 'Mountain marathon rehearsal' },
+];
 
 const SHAPE_WORDS = { long: 'One long climb', rolling: 'Rolling hills', repeats: 'Hill repeats', flat: 'Flat' };
 function fitWord(penalty) {
@@ -58,6 +64,7 @@ export default function RouteViewer({ savedRoutes }) {
     savedRoutes[0] ? { lon: savedRoutes[0].coords[0][0], lat: savedRoutes[0].coords[0][1] } : DEFAULT_START);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
+  const [exampleTitle, setExampleTitle] = useState(null); // set while an example is shown
 
   const pick = useCallback((i) => { setSelected(i); setActiveClimb(null); setHoverIdx(null); setWaterFocus(null); }, []);
 
@@ -73,6 +80,7 @@ export default function RouteViewer({ savedRoutes }) {
       setTarget({ distanceM: params.km * 1000, gainM: params.vert, shape: params.shape, race: params.race ? race : null });
       setPractice(data.practice);
       setRequests(data.requests);
+      setExampleTitle(null);
       setTab('overview');
       pick(0);
     } catch (e) {
@@ -82,13 +90,37 @@ export default function RouteViewer({ savedRoutes }) {
     }
   }
 
-  function showSaved() { setRoutes(savedRoutes); setTarget(null); setPractice(false); setRequests(null); pick(0); }
+  function showSaved() { setRoutes(savedRoutes); setTarget(null); setPractice(false); setRequests(null); setExampleTitle(null); pick(0); }
+
+  async function loadExample(id) {
+    setError(null);
+    try {
+      const res = await fetch(`/examples/${id}.json`);
+      if (!res.ok) throw new Error('Example not found.');
+      const ex = await res.json();
+      setRoutes(ex.routes);
+      setTarget(ex.target);
+      setStart(ex.start);
+      setPractice(false);
+      setRequests(null);
+      setExampleTitle(ex.title);
+      setTab('overview');
+      pick(0);
+    } catch (e) {
+      setError(`Couldn't load the example: ${e.message}`);
+    }
+  }
+
+  // Nothing saved yet (as on the public site): open with a real example instead of an empty map.
+  useEffect(() => {
+    if (!savedRoutes.length) loadExample('forest-edge');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const route = routes[selected];
   const climb = route && activeClimb != null ? route.climbs[activeClimb] : null;
   const color = (i) => ROUTE_COLORS[i % ROUTE_COLORS.length];
 
-  const heading = target
+  const heading = exampleTitle ? `Example: ${exampleTitle}` : target
     ? (target.race ? `Rehearsal of ${target.race.name}` : `${routes.length} route${routes.length === 1 ? '' : 's'} found`)
     : 'Saved routes';
 
@@ -107,10 +139,17 @@ export default function RouteViewer({ savedRoutes }) {
           <SearchForm start={start} onStartChange={setStart} onSearch={search} searching={searching} error={error}
             race={race} onRaceChange={setRace} />
 
+          <div className="examples" aria-label="Example searches">
+            <span>Examples</span>
+            {EXAMPLES.map((ex) => (
+              <button key={ex.id} className="chip-btn" onClick={() => loadExample(ex.id)}>{ex.label}</button>
+            ))}
+          </div>
+
           <section aria-label="Routes">
             <div className="section-head">
               <h2>{practice && <span className="badge" style={{ marginRight: 6 }}>Practice</span>}{heading}</h2>
-              {target && savedRoutes.length > 0 && <button className="link" onClick={showSaved}>Saved routes</button>}
+              {(target || exampleTitle) && savedRoutes.length > 0 && <button className="link" onClick={showSaved}>Saved routes</button>}
             </div>
             {target && (
               <p className="section-meta">
