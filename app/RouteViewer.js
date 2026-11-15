@@ -95,7 +95,7 @@ export default function RouteViewer({ savedRoutes }) {
           <div className="section-head">
             <h2>
               {target
-                ? `${practice ? 'Practice ' : ''}${target.race ? `rehearsal of ${target.race.name}` : 'results'} · ${target.distanceM / 1000} km, ${target.gainM} m`
+                ? `${practice ? 'Practice ' : ''}${target.race ? `${practice ? 'r' : 'R'}ehearsal of ${target.race.name}` : `${practice ? 'r' : 'R'}esults`} · ${target.distanceM / 1000} km, ${target.gainM} m`
                 : `Saved routes (${routes.length})`}
             </h2>
             {target && savedRoutes.length > 0 && <button className="link" onClick={showSaved}>Saved routes</button>}

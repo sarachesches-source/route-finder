@@ -127,6 +127,8 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 - Commit after each working step, with a plain-language message.
 
 ## Commands
+- `README.md` is the portfolio-facing overview (screenshots in `docs/screenshots/`, taken at 1280x800
+  from a cached forest-edge search). Update it when features change. `.env.example` shows the setting.
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
 - Tests: `npm test` (engine, climbs, cache, rehearsal, surface, water, explain)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
