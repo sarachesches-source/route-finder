@@ -1,9 +1,10 @@
 'use client';
-// Start point, distance, climbing, climb shape and optional race to rehearse.
-// Clicking the map also sets the start.
+// "Plan your run": start point, distance, climbing, optional race to rehearse, and
+// less-used options (climb shape, practice mode). Clicking the map also sets the start.
 import { useEffect, useState } from 'react';
 import { parseGpx, gpxName } from '../src/gpx.mjs';
 import { summarizeRace, rehearsalGain, describeGrades } from '../src/rehearsal.mjs';
+import { LocateIcon, UploadIcon, FlagIcon, ChevronIcon, SearchIcon, AlertIcon } from './icons';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
@@ -44,7 +45,7 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
       const xml = await file.text();
       const coords = parseGpx(xml);
       if (coords.length < 10) throw new Error('No track found in that file. Export the race as GPX and try again.');
-      if (coords.every((c) => !c[2])) throw new Error('That GPX has no elevation data, so its climbs can\u2019t be copied.');
+      if (coords.every((c) => !c[2])) throw new Error('That GPX has no elevation data, so its climbs can’t be copied.');
       setVertTouched(false);
       onRaceChange(summarizeRace(coords, gpxName(xml) ?? file.name.replace(/\.gpx$/i, '')));
     } catch (err) {
@@ -78,101 +79,117 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
   };
 
   return (
-    <form className="search" onSubmit={submit}>
+    <form className="search card card-pad" onSubmit={submit}>
+      <div className="card-head">
+        <h2 className="card-title">Plan your run</h2>
+      </div>
       <fieldset disabled={searching}>
         <div className="field">
-          <span className="label">Start</span>
-          <div className="row">
-            <input aria-label="Start latitude" type="number" step="any" min="-90" max="90" required
-              value={latText} onChange={setCoord('lat', setLatText)} />
-            <input aria-label="Start longitude" type="number" step="any" min="-180" max="180" required
-              value={lonText} onChange={setCoord('lon', setLonText)} />
+          <span className="field-label" id="start-label">Start point</span>
+          <div className="start-row">
+            <div className="start-inputs" role="group" aria-labelledby="start-label">
+              <input className="input" aria-label="Start latitude" type="number" step="any" min="-90" max="90" required
+                value={latText} onChange={setCoord('lat', setLatText)} />
+              <input className="input" aria-label="Start longitude" type="number" step="any" min="-180" max="180" required
+                value={lonText} onChange={setCoord('lon', setLonText)} />
+            </div>
+            <button type="button" className="btn btn-icon" onClick={useMyLocation}
+              title="Use my location" aria-label="Use my location">
+              {locating ? <span className="spinner" /> : <LocateIcon size={18} />}
+            </button>
           </div>
-          <span className="hint">
-            Click the map to move it, or{' '}
-            <button type="button" className="link" onClick={useMyLocation}>{locating ? 'locating…' : 'use my location'}</button>
-          </span>
-          {locError && <span className="hint error-text">{locError}</span>}
+          <span className="field-note">{locError
+            ? <span className="error-text">{locError}</span>
+            : 'Tip: click anywhere on the map to set the start.'}</span>
         </div>
 
-        <div className="row">
+        <div className="row-2">
           <label className="field">
-            <span className="label">Distance</span>
+            <span className="field-label">Distance</span>
             <span className="unit-input">
-              <input type="number" min="2" max="100" step="0.5" required value={km} onChange={(e) => setKm(e.target.value)} />
-              <span>km</span>
+              <input className="input" type="number" min="2" max="100" step="0.5" required value={km} onChange={(e) => setKm(e.target.value)} />
+              <span className="unit">km</span>
             </span>
           </label>
           <label className="field">
-            <span className="label">Climbing</span>
+            <span className="field-label">Climbing</span>
             <span className="unit-input">
-              <input type="number" min="0" max="5000" step="10" required value={vert} onChange={(e) => { setVert(e.target.value); setVertTouched(true); }} />
-              <span>m</span>
+              <input className="input" type="number" min="0" max="5000" step="10" required value={vert}
+                onChange={(e) => { setVert(e.target.value); setVertTouched(true); }} />
+              <span className="unit">m</span>
             </span>
           </label>
         </div>
-
-        {race && (
-          <span className="hint">
-            {vertTouched
-              ? <>Your own climbing target. <button type="button" className="link" onClick={() => setVertTouched(false)}>Match the race again</button></>
-              : <>Climbing matches the race: {Math.round(race.gainPerKm)} m per km.</>}
-          </span>
-        )}
 
         <div className="field">
-          <span className="label">Race rehearsal <span className="optional">optional</span></span>
+          <span className="field-label">Train for a race <span className="optional">optional</span></span>
           {race ? (
             <div className="race-box">
               <div className="race-head">
-                <strong>{race.name}</strong>
+                <strong><FlagIcon /> {race.name}</strong>
                 <button type="button" className="link" onClick={() => onRaceChange(null)}>Remove</button>
               </div>
-              <span className="hint">
-                {(race.distanceM / 1000).toFixed(1)} km · {race.gainM} m up · main climbs:
-                {' '}{race.climbs.map((c) => `+${c.gainM} m at ${c.startPct}–${c.endPct}%`).join(', ') || 'none'}
-              </span>
-              {race.grades && <span className="hint">Steepness: {describeGrades(race.grades)}</span>}
+              <div className="race-stats">
+                <span>{(race.distanceM / 1000).toFixed(1)} km</span>
+                <span>{race.gainM} m up</span>
+                <span>{Math.round(race.gainPerKm)} m/km</span>
+                {race.climbs.length > 0 && <span>{race.climbs.length} main climb{race.climbs.length > 1 ? 's' : ''}</span>}
+              </div>
               <svg className="race-mini" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
                 <path d={`M${race.profile.map(([f, h]) => `${(f * 100).toFixed(1)},${(22 - h * 20).toFixed(1)}`).join('L')}`}
-                  fill="none" stroke="currentColor" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+                  fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
               </svg>
+              {race.grades && <span className="hint">Steepness: {describeGrades(race.grades)}</span>}
+              <span className="hint">
+                {vertTouched
+                  ? <>Using your own climbing target. <button type="button" className="link" onClick={() => setVertTouched(false)}>Match the race</button></>
+                  : <>Climbing set to the race’s {Math.round(race.gainPerKm)} m per km.</>}
+              </span>
             </div>
           ) : (
             <label className="upload">
               <input type="file" accept=".gpx,application/gpx+xml" onChange={loadRace} />
-              <span>Upload a race GPX</span>
-              <span className="hint">Get local loops with climbs in the same places, scaled to your distance.</span>
+              <span className="upload-icon"><UploadIcon /></span>
+              <span>
+                <strong>Upload a race GPX</strong>
+                <small>Get local loops with climbs in the same places.</small>
+              </span>
             </label>
           )}
-          {raceError && <span className="hint error-text">{raceError}</span>}
+          {raceError && <span className="field-note error-text">{raceError}</span>}
         </div>
 
-        <label className="field">
-          <span className="label">Climb shape</span>
-          <select value={race ? '' : shape} disabled={!!race} onChange={(e) => setShape(e.target.value)}>
-            <option value="">{race ? 'Copied from the race' : 'Any'}</option>
-            <option value="long">One long climb</option>
-            <option value="rolling">Rolling hills</option>
-            <option value="repeats">Hill repeats (rarely found yet)</option>
-          </select>
-        </label>
+        <details className="more">
+          <summary><ChevronIcon size={14} /> More options</summary>
+          <div className="more-body">
+            <label className="field">
+              <span className="field-label">Climb shape</span>
+              <select className="select" value={race ? '' : shape} disabled={!!race} onChange={(e) => setShape(e.target.value)}>
+                <option value="">{race ? 'Copied from the race' : 'Any'}</option>
+                <option value="long">One long climb</option>
+                <option value="rolling">Rolling hills</option>
+                <option value="repeats">Hill repeats (rarely found yet)</option>
+              </select>
+            </label>
+            {IS_DEV && (
+              <label className="switch">
+                <input type="checkbox" checked={practice} onChange={(e) => setPractice(e.target.checked)} />
+                <span>Practice mode<small>Made-up routes, no API use</small></span>
+              </label>
+            )}
+          </div>
+        </details>
 
-        {IS_DEV && (
-          <label className="check">
-            <input type="checkbox" checked={practice} onChange={(e) => setPractice(e.target.checked)} />
-            <span>Practice mode <span className="muted">· made-up routes, no API use</span></span>
-          </label>
-        )}
-
-        <button className="primary" type="submit">
-          {searching ? `Searching… ${seconds} s` : 'Find routes'}
+        <button className="btn btn-primary" type="submit">
+          {searching
+            ? <><span className="spinner" /> Finding routes… {seconds}s</>
+            : <><SearchIcon size={18} /> Find routes</>}
         </button>
-        <span className="hint">
-          {practice ? 'Practice routes are invented, not real paths.' : 'One search uses about 50 of your daily openrouteservice requests.'}
-        </span>
+        <p className="submit-note">
+          {practice ? 'Practice routes are invented, not real paths.' : 'Searches real paths from OpenStreetMap.'}
+        </p>
       </fieldset>
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && <p className="alert" role="alert"><AlertIcon /> <span>{error}</span></p>}
     </form>
   );
 }

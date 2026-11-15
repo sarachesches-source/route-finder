@@ -113,6 +113,11 @@ Features from the 2026-11-15 research into what other apps miss, best first:
 Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
 ## Web app notes
+- Design (2026-11-15 redesign): Inter font (next/font), forest-green primary, warm neutrals, cards;
+  tokens at the top of `app/globals.css` (light + dark). Icons are inline SVGs in `app/icons.js`.
+  Layout: brand bar, "Plan your run" card (less-used options under "More options"), result cards
+  (big numbers, miss pills, Best match badge), details card with elevation chart + tabs
+  (Overview / Climbs / Water & exits). Screenshots for the README are taken in light mode.
 - Code in `app/` (Next.js 16, plain JavaScript): `page.js` reads `out/` on the server,
   `RouteViewer.js` is the screen, `SearchForm.js` the form, `MapView.js` the map,
   `ElevationProfile.js` the chart, `api/find/route.js` the search endpoint.
