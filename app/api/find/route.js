@@ -54,7 +54,7 @@ export async function POST(request) {
       name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
       distanceM: r.distanceM, kind: r.kind, heading: r.heading, seed: r.seed,
       score: r.score, shapePenalty: r.shapePenalty,
-      patternPenalty: r.patternPenalty, direction: loopDirection(r.coords),
+      patternPenalty: r.patternPenalty, direction: loopDirection(r.coords), surface: r.surface ?? null,
     }));
     return Response.json({ routes, tried: result.tried, failed: result.failed, practice, requests: fetchImpl.stats ?? null });
   } catch (e) {

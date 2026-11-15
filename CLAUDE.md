@@ -71,14 +71,18 @@ GPX copies of each run are in `out/live-1-forest-edge/`, `out/live-2-shape-long/
 
 ## Next task
 Features from the 2026-11-15 research into what other apps miss, best first:
-1. Trail % and surface breakdown per route (ORS `extra_info`: surface, waytype, steepness),
-   and score mostly-trail routes higher. Same requests, no extra quota (cache keys change once).
+1. DONE 2026-11-15: trail % and surface breakdown (`src/surface.mjs`, ORS `extra_info`
+   surface + waytype). Groups: trail (dirt/ground/grass/sand/unpaved, or path/track with no
+   surface tag), gravel, paved, unknown; plus % on roads/streets. Among close-enough routes,
+   more trail wins (`trailWeight` 0.15 -> up to 15 points). Shown as a bar on web cards and a
+   line in the CLI. Live forest edge: 41-54% trail, 15-23% unknown (untagged in OSM).
+   Not yet: colouring the route on the map by surface (`surface.sections` is ready for it).
 2. Drinking water along the route (OpenStreetMap via Overpass) and bail-out info
    ("at km 9 you're 2.1 km from the start").
 3. "Why this route" breakdown and steep-section warnings on each card.
 4. Race rehearsal: also match descents and steepness, not just where the climbing comes.
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
-Still to do: one real search from the web form (practice mode off) - should come from cache.
+Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
 ## Web app notes
 - Code in `app/` (Next.js 16, plain JavaScript): `page.js` reads `out/` on the server,
@@ -96,7 +100,7 @@ Still to do: one real search from the web form (practice mode off) - should come
 
 ## Commands
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
-- Tests: `npm test` (engine, climbs, cache, rehearsal)
+- Tests: `npm test` (engine, climbs, cache, rehearsal, surface)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
 - Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`)
   Optional: `--headings 8 --candidates 8` (compass directions / random round trips),

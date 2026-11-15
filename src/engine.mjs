@@ -3,6 +3,7 @@
 
 import { findClimbs, shapePenalty } from './climbs.mjs';
 import { bestDirection } from './rehearsal.mjs';
+import { summarizeSurface } from './surface.mjs';
 
 const ORS_URL ='https://api.openrouteservice.org/v2/directions/foot-hiking/geojson';
 
@@ -67,7 +68,8 @@ const WINDING = 1.3;
 
 /** Request body for one loop of roughly `lengthM` metres. */
 function loopBody(job, lengthM) {
-  const base = { elevation: true, instructions: false };
+  // extra_info: surface and way type for every stretch, for the trail % breakdown.
+  const base = { elevation: true, instructions: false, extra_info: ['surface', 'waytype'] };
   if (job.kind === 'random') {
     return { ...base, coordinates: [[job.lon, job.lat]],
       options: { round_trip: { length: Math.round(lengthM), points: job.points, seed: job.seed } } };
@@ -100,6 +102,7 @@ async function fetchLoop(job, lengthM, { apiKey, fetchImpl, sleep }) {
       requestedM: Math.round(lengthM), coords,
       distanceM: feature.properties?.summary?.distance ?? routeLength(coords),
       gainM: elevationGain(coords),
+      surface: summarizeSurface(coords, feature.properties?.extras),
     };
   }
 }
@@ -131,7 +134,7 @@ async function fetchCorrected(job, target, ctx) {
  */
 export async function findRoutes(target, {
   apiKey, headings = 8, spreads = [25, 60], candidates = 8, corrections = 2,
-  distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, accuracySlack = 10, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
+  distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, accuracySlack = 10, trailWeight = 0.15, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
 } = {}) {
   if (!apiKey) throw new Error('Missing openrouteservice API key');
   const { lat, lon } = target;
@@ -170,10 +173,17 @@ export async function findRoutes(target, {
     // Optional race pattern (climbing curve of an uploaded race): try the loop both ways round.
     if (target.pattern) {
       const { penalty, reversed } = bestDirection(r.coords, target.pattern);
-      if (reversed) { r.coords = [...r.coords].reverse(); r.reversed = true; }
+      if (reversed) {
+        const last = r.coords.length - 1;
+        r.coords = [...r.coords].reverse();
+        r.reversed = true;
+        if (r.surface) r.surface.sections = r.surface.sections.map(([a, b, g]) => [last - b, last - a, g]).reverse();
+      }
       r.patternPenalty = penalty;
       r.extra += patternWeight * penalty;
     }
+    // Trail runners: among routes that are close enough, prefer more trail (0..15 points).
+    if (r.surface && trailWeight) r.extra += trailWeight * (100 - r.surface.trail);
     r.score = r.accuracy + r.extra;
   }
   const ranked = rankRoutes(routes, { keep, slack: accuracySlack });

@@ -9,6 +9,7 @@ import { cachedFetch } from './src/ors-cache.mjs';
 import { fakeOrsFetch } from './src/fake-ors.mjs';
 import { parseGpx, gpxName } from './src/gpx.mjs';
 import { summarizeRace, rehearsalGain, loopDirection } from './src/rehearsal.mjs';
+import { describeSurface } from './src/surface.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).join(' ').split('--').filter(Boolean).map((p) => p.trim().split(/\s+/)));
@@ -74,4 +75,5 @@ result.routes.forEach((r, i) => {
     `${r.shapePenalty != null ? `shape miss ${Math.round(r.shapePenalty)}  ` : ''}` +
     `${r.patternPenalty != null ? `race-pattern miss ${Math.round(r.patternPenalty)}${loopDirection(r.coords) ? `, run ${loopDirection(r.coords)}` : ''}  ` : ''}score ${r.score.toFixed(1)}  ` +
     `[${r.kind === 'heading' ? `heading ${r.heading} deg` : `random seed ${r.seed}`}]  -> ${file}`);
+  if (r.surface) console.log(`    ${describeSurface(r.surface)}  (${r.surface.road}% on roads/streets)`);
 });

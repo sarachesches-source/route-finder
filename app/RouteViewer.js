@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import ElevationProfile from './ElevationProfile';
 import SearchForm from './SearchForm';
+import { SURFACE_GROUPS } from '../src/surface.mjs';
 import { toGpx } from '../src/engine.mjs';
 
 // The map library needs a real browser, so it's only loaded there.
@@ -124,6 +125,7 @@ export default function RouteViewer({ savedRoutes }) {
                       {r.direction && ` · run it ${r.direction}`}
                     </span>
                   )}
+                  {r.surface && <SurfaceBar surface={r.surface} />}
                 </button>
               ))}
             </div>
@@ -185,6 +187,24 @@ export default function RouteViewer({ savedRoutes }) {
         />
       </main>
     </div>
+  );
+}
+
+/** Coloured bar plus "78% trail · 15% gravel · 7% paved · 3% on roads". */
+function SurfaceBar({ surface }) {
+  const shown = SURFACE_GROUPS.filter((g) => surface[g] >= 1);
+  return (
+    <span className="surface">
+      <span className="surface-bar" aria-hidden="true">
+        {shown.map((g) => <span key={g} className={`seg ${g}`} style={{ width: `${surface[g]}%` }} />)}
+      </span>
+      <span className="surface-text">
+        {shown.map((g, i) => (
+          <span key={g}>{i > 0 && ' · '}<span className={`swatch ${g}`} />{surface[g]}% {g}</span>
+        ))}
+        {surface.road > 0 && <span className="muted"> · {surface.road}% on roads</span>}
+      </span>
+    </span>
   );
 }
 
