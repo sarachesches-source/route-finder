@@ -47,25 +47,31 @@ climbing target, get three loops that hit both numbers. Inspired by trackscout.n
   by `src/ors-cache.mjs`. Repeating the same search costs 0 requests; CLI and web share it.
   Errors are never cached. `--no-cache` on the CLI forces fresh requests.
 
+## Live test results (2026-11-15, forest edge 46.7420, 23.5870, 15 km)
+GPX copies of each run are in `out/live-1-forest-edge/`, `out/live-2-shape-long/`, `out/live-3-race/`.
+1. Plain, 500 m: PASS. 15.1 km/515 m (+1%/+3%), 15.7/505 (+5%/+1%), 14.7/480 (-2%/-4%). 55 requests.
+   -> The engine works; yesterday's centre-start misses were the terrain.
+2. `--shape long`: 0 new requests (all from cache). Picks real single-climb routes (one climb of
+   302 m over 4.2 km) but gives up too much climbing: -16% to -26%. Shape weight 0.5 outweighs
+   the climbing target. Fix idea: only let shape choose between routes already within ~10%.
+3. `--race` sample marathon (target 660 m from 44 m/km): 0 new requests. Pattern miss 12-22
+   (strong/partial), loops flipped where better, but climbing -19% to -23%: no loop here reaches
+   660 m, and the terrain gives rolling hills, not two big climbs.
+- Data glitch seen: a "+31 m over 0.0 km (84.8%)" climb in route 2 of run 3 - a spike in the
+  elevation data. Climb detection should ignore impossible grades (e.g. > 50% over < 50 m).
+
 ## Next task
-When the ORS quota resets, run the forest-edge test to tell "terrain can't do it" from
-"engine can't find it":
-
-    node find-routes.mjs --lat 46.7420 --lon 23.5870 --km 15 --vert 500
-
-- If that hits ~10% on both: engine is fine; the centre start just lacks hills. Then show the
-  user the best achievable climb instead of pretending, and move on to climb shaping (step 2),
-  where hill repeats can add vert on a short hill.
-- If it still misses badly: try loops that reach further (out-and-back "lollipop" shapes).
-- Same session, one extra run to check climb shaping live:
-  `node find-routes.mjs --lat 46.7420 --lon 23.5870 --km 15 --vert 500 --shape long`
-- And race rehearsal live (try a real race GPX if available):
-  `node find-routes.mjs --lat 46.7420 --lon 23.5870 --km 15 --race samples/sample-mountain-marathon.gpx`
-- Note: `out/` real routes were overwritten by practice output on 2026-11-14 (since fixed:
-  practice now writes to `out/practice/`). The first live run will refill `out/`.
-
-Offline work that needs no API quota: hill-repeats route builder (see step 2).
-When quota is back, also run one real search from the web form (practice mode off).
+Fix the scoring balance found in live checks 2 and 3: climb shape and race pattern should not
+win over the climbing target. Then ignore elevation spikes in climb detection.
+After that, features from the 2026-11-15 research into what other apps miss, best first:
+1. Trail % and surface breakdown per route (ORS `extra_info`: surface, waytype, steepness),
+   and score mostly-trail routes higher. Same requests, no extra quota (cache keys change once).
+2. Drinking water along the route (OpenStreetMap via Overpass) and bail-out info
+   ("at km 9 you're 2.1 km from the start").
+3. "Why this route" breakdown and steep-section warnings on each card.
+4. Race rehearsal: also match descents and steepness, not just where the climbing comes.
+5. Later: prefer paths the runner hasn't run yet (upload past runs).
+Still to do: one real search from the web form (practice mode off) - should come from cache.
 
 ## Web app notes
 - Code in `app/` (Next.js 16, plain JavaScript): `page.js` reads `out/` on the server,
