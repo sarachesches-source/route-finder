@@ -133,7 +133,12 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 ## Online (live since 2026-11-15): https://hillgorithm.vercel.app/
 - Deployed by the owner on Vercel from the GitHub repo (main branch; each push redeploys).
   ORS_API_KEY is set in Vercel. Checked live: example loads, race example, surface colours,
-  tabs, input checks, no console errors. A real live search was not run yet (costs ~55 requests).
+  tabs, input checks, no console errors.
+- First live searches failed: ORS_API_KEY wasn't picked up until the variable was saved for
+  Production and the site redeployed (new Vercel UI: Settings -> Environments -> Production).
+- Live search verified 2026-11-19: forest edge 15 km / 500 m -> 95 s, 55 requests, same 3 routes
+  as locally (15.1/504, 14.7/480, 14.3/527), water loaded. Repeat: 0 s, 55 from cache, 0 new.
+  Each push redeploys and clears that temp cache.
 
 ## Going online - how it was prepared
 - `next build` passes. Production-only behaviour: practice mode hidden/ignored, search limits on.
