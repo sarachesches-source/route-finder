@@ -116,6 +116,16 @@ Features from the 2026-11-15 research into what other apps miss, best first:
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
 Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
+## Landing page (2026-11-19)
+- `/` = landing page (`app/page.js`, `app/landing.css`), `/plan` = the route planner (was `/`).
+- Psychology: clarity first (hero A "Tell us the distance and the climb. Get the loop."), show real
+  results (animated loop + real numbers, real screenshots in `public/landing/`), main button
+  "Try it free" with "No account needed", runners' language, honest trust points, no fake reviews.
+- Sections: hero, 3 steps, what you get (4 outcomes), real results, trust, accounts, FAQ, final CTA.
+- Sign-in is an honest "Accounts coming soon" section (nav "Sign in" scrolls to it). Real accounts
+  (Google + email link, saved routes, more searches) not built - owner hasn't decided yet.
+- The planner logo links back to `/`. Link previews use `metadataBase` (SITE_URL or the vercel URL).
+
 ## Web app notes
 - Design (2026-11-15 redesign): Inter font (next/font), forest-green primary, warm neutrals, cards;
   tokens at the top of `app/globals.css` (light + dark). Icons are inline SVGs in `app/icons.js`.

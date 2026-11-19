@@ -128,11 +128,13 @@ export default function RouteViewer({ savedRoutes }) {
     <div className="app">
       <aside className="panel">
         <header className="brand">
-          <span className="brand-mark"><LogoIcon size={20} /></span>
-          <div>
-            <h1>Hillgorithm</h1>
-            <p>Loops built to your climb</p>
-          </div>
+          <a href="/" className="brand-link" aria-label="Hillgorithm home page">
+            <span className="brand-mark"><LogoIcon size={20} /></span>
+            <div>
+              <h1>Hillgorithm</h1>
+              <p>Loops built to your climb</p>
+            </div>
+          </a>
         </header>
 
         <div className="panel-scroll">

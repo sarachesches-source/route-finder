@@ -451,3 +451,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   background: var(--surface); border: 1px solid var(--border); color: var(--text-2);
 }
 .chip-btn:hover { border-color: var(--primary); color: var(--primary); }
+.brand-link { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }

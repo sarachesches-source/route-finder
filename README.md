@@ -2,7 +2,7 @@
 
 **Loops built to your climb.** Trail and ultra running loops that hit your distance *and* your climbing target.
 
-**Live:** [hillgorithm.vercel.app](https://hillgorithm.vercel.app/)
+**Live:** [hillgorithm.vercel.app](https://hillgorithm.vercel.app/) (landing page) · [route planner](https://hillgorithm.vercel.app/plan)
 
 Give it a start point, a distance and how many metres you want to climb. It returns
 three loops that match, tells you how much of each is real trail, where you can refill
@@ -150,7 +150,8 @@ water and bail-out, explanations and search limits, using a fake routing service
 
 ```
 app/                Next.js web app
-  page.js           server: loads saved routes from out/
+  page.js           landing page (/), styles in landing.css
+  plan/page.js      route planner (/plan): loads saved routes from out/
   api/find/route.js server: runs a search (API key never reaches the browser)
   RouteViewer.js    the screen: form, results, details
   MapView.js        MapLibre map (topo / streets, surface colours, water dots)

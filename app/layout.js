@@ -7,6 +7,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin', 'latin-ext'], display: 'swap', variable: '--font-inter' });
 
 export const metadata = {
+  // Full address for link previews (WhatsApp, Slack, social): images need an absolute URL.
+  metadataBase: new URL(process.env.SITE_URL || 'https://hillgorithm.vercel.app'),
   title: 'Hillgorithm · Loops built to your climb',
   description: 'Trail and ultra running loops that hit your distance and climbing targets.',
 };
