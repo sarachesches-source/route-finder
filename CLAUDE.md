@@ -116,6 +116,18 @@ Features from the 2026-11-15 research into what other apps miss, best first:
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
 Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
+## Cheaper searches (2026-11-19)
+- The live site hit openrouteservice's own daily quota ("403 Quota exceeded") on 2026-11-19, well
+  before the assumed 2,000/day (also happened 2026-11-14). Real limit unknown: owner to check the
+  ORS dashboard (Directions row) and set DAILY_REQUEST_BUDGET in Vercel to ~75% of it.
+- Engine default is now strategy "focused": scout 8 directions x 2 shapes uncorrected (16 requests),
+  correct the 4 best by climb-per-km + both shapes of the 2 best, plus 3 random loops -> ~31 requests.
+  Same top 3 as "wide" for the forest-edge plain search (tested from cache); `--wide` on the CLI or
+  strategy 'wide' keeps the old 55-request search. Scouts >10% off distance are not shown.
+- Hard cap maxRequests 45 per search; stops on the first 403 quota error.
+- Server remembers a quota outage for an hour (limiter.markQuotaOut) and stops early if ORS reports
+  fewer than 40 requests left in an `x-ratelimit-remaining` header (if ORS sends it - unverified).
+
 ## Landing page (2026-11-19)
 - `/` = landing page (`app/page.js`, `app/landing.css`), `/plan` = the route planner (was `/`).
 - Psychology: clarity first (hero A "Tell us the distance and the climb. Get the loop."), show real
@@ -174,7 +186,8 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 - Web app: `npm run dev` then open http://localhost:3000 (shows the GPX files in `out/`)
 - Tests: `npm test` (engine, climbs, cache, rehearsal, surface, water, explain)
 - Analyze a GPX (no API calls): `node analyze-gpx.mjs out/route-1.gpx` - lists climbs and shape fit
-- Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`)
+- Find routes: `node find-routes.mjs --lat <lat> --lon <lon> --km <km> --vert <m>` (GPX files go to `out/`;
+  `--wide` for the original 55-request search)
   Optional: `--headings 8 --candidates 8` (compass directions / random round trips),
   `--shape long|rolling|repeats` (prefer that climb profile), `--race file.gpx` (copy a race's
   climb pattern), `--practice` (made-up routes, no API use; writes to `out/practice/`)

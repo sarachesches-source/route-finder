@@ -42,3 +42,18 @@ test('limits are off in development unless configured', () => {
   assert.equal(serverLimiter({ NODE_ENV: 'development' }), null);
   assert.ok(serverLimiter({ NODE_ENV: 'production' }));
 });
+
+test('after the routing quota runs out, visitors are answered straight away for an hour', () => {
+  let t = Date.UTC(2026, 10, 19, 12, 0);
+  const lim = createLimiter({ perHour: 5, dailyBudget: 1000, now: () => t });
+  assert.equal(lim.check('a').ok, true);
+  lim.markQuotaOut();
+  assert.deepEqual(lim.check('b'), { ok: false, reason: 'quota' });
+  t += 61 * 60000;
+  assert.equal(lim.check('b').ok, true, 'tries again after an hour');
+  lim.noteRemaining(500);
+  assert.equal(lim.check('c').ok, true, 'plenty left: keep going');
+  lim.noteRemaining(12);
+  assert.equal(lim.check('c').reason, 'quota', 'less than one search left: stop early');
+  lim.noteRemaining(undefined); // service gave no number: nothing changes
+});

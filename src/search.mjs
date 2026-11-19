@@ -29,5 +29,8 @@ export async function runSearch({ lat, lon, km, vert, shape, pattern }, { practi
   // Water stops along the results (OpenStreetMap via openrouteservice, cached; made up in practice mode).
   const coordLists = routes.map((r) => r.coords);
   attachWater(routes, practice ? fakeWaterPoints(coordLists) : await findWater(coordLists, { apiKey }));
-  return { routes, tried: result.tried, failed: result.failed, requests: fetcher.stats ?? null };
+  return {
+    routes, tried: result.tried, failed: result.failed, requests: fetcher.stats ?? null,
+    quotaHit: result.quotaHit, remaining: result.remaining,
+  };
 }

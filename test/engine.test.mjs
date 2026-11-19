@@ -48,7 +48,7 @@ test('offsetPoint moves the right way', () => {
 
 test('findRoutes finds the hilly heading, corrects distance, survives failures', async () => {
   const target = { lat: 46.77, lon: 23.6, distanceM: 10000, gainM: 400 };
-  const r = await findRoutes(target, { apiKey: 'x', fetchImpl: fakeFetch });
+  const r = await findRoutes(target, { apiKey: 'x', fetchImpl: fakeFetch, strategy: 'wide' });
   assert.equal(r.routes.length, 3);
   assert.equal(r.failed, 1);
   assert.ok(r.routes[0].score <= r.routes[1].score && r.routes[1].score <= r.routes[2].score);
@@ -66,7 +66,7 @@ test('findRoutes waits and retries when rate-limited', async () => {
     ? Promise.resolve({ ok: false, status: 429, text: async () => 'slow down' })
     : fakeFetch(url, init));
   const target = { lat: 46.77, lon: 23.6, distanceM: 10000, gainM: 400 };
-  const r = await findRoutes(target, { apiKey: 'x', fetchImpl: limited, sleep: async () => { waits++; }, concurrency: 1 });
+  const r = await findRoutes(target, { apiKey: 'x', fetchImpl: limited, sleep: async () => { waits++; }, concurrency: 1, strategy: 'wide' });
   assert.equal(waits, 1);
   assert.equal(r.failed, 1); // only the seed-5 failure, not the rate limit
 });
@@ -114,4 +114,26 @@ test('cleanElevation removes a spike but keeps a real climb', async () => {
   spiky[20] = [spiky[20][0], 46.77, 431]; // one bad point, 31 m up
   assert.equal(elevationGain(spiky), 31);
   assert.equal(elevationGain(cleanElevation(spiky)), 0);
+});
+
+test('focused search: scouts every direction, then far fewer requests than wide', async () => {
+  const target = { lat: 46.77, lon: 23.6, distanceM: 10000, gainM: 400 };
+  const wide = await findRoutes(target, { apiKey: 'x', fetchImpl: fakeFetch, strategy: 'wide' });
+  const focused = await findRoutes(target, { apiKey: 'x', fetchImpl: fakeFetch });
+  assert.ok(focused.requests < wide.requests * 0.7, `focused ${focused.requests} vs wide ${wide.requests}`);
+  assert.equal(focused.routes[0].heading, 180, 'still finds the hilly direction');
+  assert.equal(focused.routes[0].gainM, 400);
+  assert.ok(Math.abs(focused.routes[0].distanceM - 10000) <= 500);
+});
+
+test('search stops at once when the daily quota is used up, and respects the request cap', async () => {
+  const target = { lat: 46.77, lon: 23.6, distanceM: 10000, gainM: 400 };
+  let calls = 0;
+  const quota = async () => { calls++; return { ok: false, status: 403, text: async () => '{"error":"Quota exceeded"}' }; };
+  await assert.rejects(findRoutes(target, { apiKey: 'x', fetchImpl: quota, concurrency: 1 }), /Quota exceeded/);
+  assert.equal(calls, 1, 'no more requests after the first quota error');
+
+  const capped = await findRoutes(target, { apiKey: 'x', fetchImpl: fakeFetch, maxRequests: 10, concurrency: 1 });
+  assert.ok(capped.requests <= 10, `sent ${capped.requests}`);
+  assert.ok(capped.routes.length >= 1);
 });

@@ -50,8 +50,9 @@ try {
     apiKey: practice ? 'practice' : process.env.ORS_API_KEY,
     fetchImpl,
     ...(practice && { sleep: async () => {} }),
+    strategy: 'wide' in args ? 'wide' : 'focused', // --wide: the original 55-request search
     headings: Number(args.headings ?? 8),
-    candidates: Number(args.candidates ?? 8),
+    candidates: args.candidates ? Number(args.candidates) : undefined,
     onProgress: (done, total) => process.stdout.write(`\r  checked ${done}/${total} loops`),
   });
 } catch (e) {

@@ -18,7 +18,7 @@ const fail = (status, error) => Response.json({ error }, { status });
 /** Turn routing-service errors into something a runner can act on. */
 function friendly(message) {
   if (/quota exceeded/i.test(message) || /ORS 403/.test(message)) {
-    return `Daily route-search limit reached. Try again tomorrow, or ${FALLBACK}.`;
+    return `Today's free route searches are used up for everyone. Try again later, or ${FALLBACK}.`;
   }
   if (/ORS 401/.test(message)) return 'openrouteservice rejected the API key. Check the ORS_API_KEY setting.';
   if (/ORS 404|ORS 2010|could not find routable point/i.test(message)) {
@@ -58,9 +58,9 @@ export async function POST(request) {
   if (limiter) {
     const verdict = limiter.check(visitor);
     if (!verdict.ok) {
-      return fail(429, verdict.reason === 'daily'
-        ? `The site has used today's route searches. Try again tomorrow, or ${FALLBACK}.`
-        : `You've reached the search limit for now. Try again in ${verdict.retryInMin} min, or ${FALLBACK}.`);
+      return fail(429, verdict.reason === 'visitor'
+        ? `You've reached the search limit for now. Try again in ${verdict.retryInMin} min, or ${FALLBACK}.`
+        : `Today's free route searches are used up for everyone. Try again later, or ${FALLBACK}.`);
     }
     limiter.record(visitor);
   }
@@ -69,8 +69,11 @@ export async function POST(request) {
   const fetchImpl = practice ? fakeOrsFetch : cachedFetch(fetch);
   try {
     const result = await runSearch({ lat, lon, km, vert, shape, pattern }, { practice, apiKey, fetchImpl });
+    if (result.quotaHit) limiter?.markQuotaOut();
+    limiter?.noteRemaining(result.remaining);
     return Response.json({ ...result, practice });
   } catch (e) {
+    if (/ORS 403|quota exceeded/i.test(e.message)) limiter?.markQuotaOut();
     return fail(502, friendly(e.message));
   } finally {
     if (limiter && fetchImpl.stats) limiter.spend(fetchImpl.stats.misses); // only real requests count

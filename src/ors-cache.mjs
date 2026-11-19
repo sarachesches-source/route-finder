@@ -42,12 +42,12 @@ export function cachedFetch(fetchImpl, { dir = cacheDir('ors'), maxAgeDays = 30 
       mkdirSync(dir, { recursive: true });
       writeFileSync(file, JSON.stringify(data));
     } catch { /* can't write the cache: still return the answer */ }
-    return answer(data);
+    return answer(data, res.headers);
   };
   wrapped.stats = stats;
   return wrapped;
 }
 
-function answer(data) {
-  return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) };
+function answer(data, headers) {
+  return { ok: true, status: 200, headers, json: async () => data, text: async () => JSON.stringify(data) };
 }

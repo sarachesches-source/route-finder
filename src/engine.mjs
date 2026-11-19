@@ -111,10 +111,11 @@ async function fetchLoop(job, lengthM, { apiKey, fetchImpl, sleep }) {
  * Fetch a loop; if it comes back too long or too short, ask again with a scaled length.
  * Keeps whichever attempt landed closest to the target distance.
  */
-async function fetchCorrected(job, target, ctx) {
+async function fetchCorrected(job, target, ctx, corrections = ctx.corrections) {
   let lengthM = target.distanceM * (job.lengthFactor ?? 1);
   let best = null;
-  for (let i = 0; i <= ctx.corrections; i++) {
+  for (let i = 0; i <= corrections; i++) {
+    if (i > 0 && ctx.stopped?.()) break; // request cap or quota reached: keep the best so far
     const r = await fetchLoop(job, lengthM, ctx);
     r.distErr = Math.abs(r.distanceM - target.distanceM) / target.distanceM;
     if (!best || r.distErr < best.distErr) best = r;
@@ -126,40 +127,101 @@ async function fetchCorrected(job, target, ctx) {
 
 /**
  * Find the best loops for a start point, distance and climbing target.
- * Two kinds of candidate:
- *  - heading loops: triangles pointed at each compass direction, so the hilly side gets tried
- *  - random loops: openrouteservice's own round trips with varied shape and seed
+ *
+ * "focused" strategy (default, ~25-30 requests):
+ *   1. scout: one uncorrected triangle loop per compass direction and shape (1 request each)
+ *   2. focus: the `focus` scouts whose climbing per km best matches the target get full
+ *      distance correction, plus `candidates` random round trips
+ * "wide" strategy (the original, ~55 requests): every direction and shape, fully corrected.
+ * Both stop at once if openrouteservice says the daily quota is used up, and never send more
+ * than `maxRequests` requests.
+ *
  * @param {{lat:number, lon:number, distanceM:number, gainM:number, shape?:'long'|'rolling'|'repeats', pattern?:number[]}} target
  *   pattern: a race pattern to copy, { climb, descent?, grades? } (see rehearsal.mjs); an array
  *   is taken as the climbing curve alone
+ * @returns { routes, all, tried, failed, errors, requests, quotaHit }
  */
 export async function findRoutes(target, {
-  apiKey, headings = 8, spreads = [25, 60], candidates = 8, corrections = 2,
-  distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, accuracySlack = 10, trailWeight = 0.15, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
+  apiKey, strategy = 'focused', headings = 8, spreads = [25, 60], focus = 4, candidates, corrections = 2,
+  maxRequests = 45, distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, accuracySlack = 10,
+  trailWeight = 0.15, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
 } = {}) {
   if (!apiKey) throw new Error('Missing openrouteservice API key');
   const { lat, lon } = target;
-  const jobs = [];
-  for (let h = 0; h < headings; h++) {
-    for (const spread of spreads) jobs.push({ kind: 'heading', lat, lon, heading: (360 / headings) * h, spread });
+  candidates ??= strategy === 'wide' ? 8 : 3;
+
+  // Count requests, and never ask the same question twice in one search.
+  const memo = new Map();
+  const ctx = {
+    apiKey, sleep, corrections, distanceTolerance, requests: 0, quotaHit: false,
+    fetchImpl: async (url, init) => {
+      const key = init.body;
+      if (memo.has(key)) return memo.get(key)();
+      ctx.requests++;
+      const res = await fetchImpl(url, init);
+      // Some API gateways report the quota left; keep the lowest value seen, if any.
+      const left = Number(res.headers?.get?.('x-ratelimit-remaining'));
+      if (Number.isFinite(left)) ctx.remaining = Math.min(ctx.remaining ?? Infinity, left);
+      if (!res.ok) return res;
+      const data = await res.json();
+      const replay = () => ({ ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) });
+      memo.set(key, replay);
+      return replay();
+    },
+  };
+  const stopped = () => ctx.quotaHit || ctx.requests >= maxRequests;
+  ctx.stopped = stopped;
+
+  const routes = [], errors = [];
+  let done = 0, total = 0;
+  async function run(jobs, corrections) {
+    total += jobs.length;
+    const out = [];
+    let next = 0;
+    async function worker() {
+      while (next < jobs.length && !stopped()) {
+        const job = jobs[next++];
+        try { out.push(await fetchCorrected(job, target, ctx, corrections)); }
+        catch (e) {
+          errors.push(e.message);
+          if (/ORS 403/.test(e.message)) ctx.quotaHit = true; // daily quota used up: stop now
+        }
+        onProgress?.(++done, total);
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    return out;
   }
+  const headingJob = (heading, spread) => ({ kind: 'heading', lat, lon, heading, spread });
   const lengthFactors = [0.85, 1.0, 1.15];
   const pointOptions = [3, 4, 6, 8];
-  for (let i = 0; i < candidates; i++) {
-    jobs.push({ kind: 'random', lat, lon, lengthFactor: lengthFactors[i % 3], points: pointOptions[i % 4], seed: i + 1 });
+  const randomJobs = (n) => Array.from({ length: n }, (_, i) =>
+    ({ kind: 'random', lat, lon, lengthFactor: lengthFactors[i % 3], points: pointOptions[i % 4], seed: i + 1 }));
+  const directions = Array.from({ length: headings }, (_, h) => (360 / headings) * h);
+
+  if (strategy === 'wide') {
+    const jobs = directions.flatMap((h) => spreads.map((sp) => headingJob(h, sp)));
+    routes.push(...await run([...jobs, ...randomJobs(candidates)]));
+  } else {
+    // 1. Scout every direction and shape once, uncorrected (1 request each).
+    const scouts = await run(directions.flatMap((h) => spreads.map((sp) => headingJob(h, sp))), 0);
+    // Scouts are information; only ones already close on distance may be shown as results.
+    routes.push(...scouts.filter((r) => r.distErr <= 0.1));
+    // 2. Correct only the scouts whose climbing per km is closest to the target's. Their first
+    //    request is already known (memo), so each costs about one more request.
+    const predicted = (r) => (r.gainM * target.distanceM) / r.distanceM;
+    const ranked = [...scouts]
+      .sort((a, b) => Math.abs(predicted(a) - target.gainM) - Math.abs(predicted(b) - target.gainM));
+    // Plus the other loop shape of the two best directions: one shape often scouts poorly
+    // while the other one in the same direction is the winner.
+    const picks = [...ranked.slice(0, focus), ...ranked.slice(0, 2).flatMap((r) => spreads.map((sp) => ({ heading: r.heading, spread: sp })))];
+    const seen = new Set();
+    const focused = picks.filter((p) => { const k = `${p.heading}/${p.spread}`; return seen.has(k) ? false : seen.add(k); })
+      .map((p) => headingJob(p.heading, p.spread));
+    routes.push(...await run([...focused, ...randomJobs(candidates)]));
+    // Stopped early (cap or quota) with nothing close: rough scouts beat no answer at all.
+    if (!routes.length) routes.push(...scouts);
   }
-  const ctx = { apiKey, fetchImpl, sleep, corrections, distanceTolerance };
-  const routes = [], errors = [];
-  let next = 0;
-  async function worker() {
-    while (next < jobs.length) {
-      const job = jobs[next++];
-      try { routes.push(await fetchCorrected(job, target, ctx)); }
-      catch (e) { errors.push(e.message); }
-      onProgress?.(routes.length + errors.length, jobs.length);
-    }
-  }
-  await Promise.all(Array.from({ length: concurrency }, worker));
   if (!routes.length) throw new Error(`No routes found. First error: ${errors[0]}`);
 
   for (const r of routes) {
@@ -189,7 +251,10 @@ export async function findRoutes(target, {
     r.score = r.accuracy + r.extra;
   }
   const ranked = rankRoutes(routes, { keep, slack: accuracySlack });
-  return { routes: ranked, all: routes, tried: routes.length, failed: errors.length, errors: errors.slice(0, 3) };
+  return {
+    routes: ranked, all: routes, tried: routes.length, failed: errors.length, errors: errors.slice(0, 3),
+    requests: ctx.requests, quotaHit: ctx.quotaHit, remaining: ctx.remaining ?? null,
+  };
 }
 
 /**

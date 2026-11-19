@@ -18,6 +18,7 @@ export function visitorKey(headers) {
 export function createLimiter({ perHour = 5, dailyBudget = 1500, now = Date.now } = {}) {
   const visits = new Map(); // visitor key -> timestamps of recent searches
   let day = dayKey(now()), used = 0;
+  let quotaOutUntil = 0;     // routing service said its daily quota is used up
 
   function roll() {
     const today = dayKey(now());
@@ -28,9 +29,10 @@ export function createLimiter({ perHour = 5, dailyBudget = 1500, now = Date.now 
   }
 
   return {
-    /** { ok: true } or { ok: false, reason: 'daily' | 'visitor', retryInMin } */
+    /** { ok: true } or { ok: false, reason: 'quota' | 'daily' | 'visitor', retryInMin } */
     check(key) {
       roll();
+      if (now() < quotaOutUntil) return { ok: false, reason: 'quota' };
       if (used >= dailyBudget) return { ok: false, reason: 'daily' };
       const recent = (visits.get(key) ?? []).filter((t) => now() - t < HOUR);
       visits.set(key, recent);
@@ -44,6 +46,10 @@ export function createLimiter({ perHour = 5, dailyBudget = 1500, now = Date.now 
     /** Count routing requests actually sent (cache misses), after a search. */
     spend(requests) { roll(); used += requests; },
     remaining() { roll(); return Math.max(0, dailyBudget - used); },
+    /** The routing service ran out: answer visitors straight away instead of asking it again. */
+    markQuotaOut(ms = HOUR) { quotaOutUntil = Math.max(quotaOutUntil, now() + ms); },
+    /** Requests left as reported by the routing service; stop early below one search's worth. */
+    noteRemaining(left, threshold = 40) { if (Number.isFinite(left) && left < threshold) this.markQuotaOut(); },
   };
 }
 

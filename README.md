@@ -72,8 +72,11 @@ flowchart LR
   pattern and trail share decide.
 - **Race matching** compares "climbing curves" (share of total climb done at each 2% of the
   distance), the same for descents, and the share of distance in 7 steepness bands.
+- **Scout, then focus:** one quick look per direction and loop shape, then distance correction
+  only for the most promising ones. About 30 routing requests per search instead of 55, with the
+  same top results in the live tests.
 - **Caching:** every routing answer is saved on disk, so repeating a search costs no API
-  quota. One fresh search uses about 55 requests on the free plan.
+  quota. The search stops at once if the daily quota runs out, and the site remembers it.
 
 ## Real results
 
