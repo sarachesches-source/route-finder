@@ -22,6 +22,7 @@ const start = { lat: 46.742, lon: 23.587 }; // edge of the Făget forest, Cluj-N
 const raceXml = readFileSync('samples/sample-mountain-marathon.gpx', 'utf8');
 const race = summarizeRace(parseGpx(raceXml), gpxName(raceXml) ?? 'Sample race');
 
+const boulder = { lat: 39.9989, lon: -105.2815 }; // Chautauqua Park trailhead, Boulder, Colorado
 const examples = [
   {
     id: 'forest-edge',
@@ -33,6 +34,11 @@ const examples = [
     title: 'Rehearse a mountain marathon',
     race,
     params: { ...start, km: 15, vert: rehearsalGain(race, 15), pattern: { climb: race.curve, descent: race.descent, grades: race.grades } },
+  },
+  {
+    id: 'boulder',
+    title: '10 miles · 2,000 ft from Chautauqua, Boulder',
+    params: { ...boulder, km: 16, vert: 610 },
   },
 ];
 

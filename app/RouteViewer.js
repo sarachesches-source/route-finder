@@ -8,6 +8,7 @@ import SearchForm from './SearchForm';
 import { SURFACE_GROUPS } from '../src/surface.mjs';
 import { explainRoute } from '../src/explain.mjs';
 import { toGpx } from '../src/engine.mjs';
+import { defaultUnits, dist, elev, at, distValue, elevValue, distUnit, elevUnit } from '../src/units.mjs';
 import {
   LogoIcon, MountainIcon, DropIcon, DownloadIcon, AlertIcon, CheckIcon, CrossIcon, PinIcon, HomeIcon, FlagIcon,
 } from './icons';
@@ -22,6 +23,7 @@ const DEFAULT_START = { lat: 46.7712, lon: 23.6236 }; // central Cluj-Napoca
 const EXAMPLES = [
   { id: 'forest-edge', label: '15 km · 500 m near Cluj' },
   { id: 'race-rehearsal', label: 'Mountain marathon rehearsal' },
+  { id: 'boulder', label: '10 mi · 2,000 ft in Boulder, CO' },
 ];
 
 const SHAPE_WORDS = { long: 'One long climb', rolling: 'Rolling hills', repeats: 'Hill repeats', flat: 'Flat' };
@@ -65,6 +67,17 @@ export default function RouteViewer({ savedRoutes }) {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
   const [exampleTitle, setExampleTitle] = useState(null); // set while an example is shown
+  // Display units: the viewer's last choice, else from their browser (US -> miles and feet).
+  const [units, setUnitsState] = useState('metric');
+  useEffect(() => {
+    let saved = null;
+    try { saved = localStorage.getItem('hillgorithm-units'); } catch { /* storage blocked */ }
+    setUnitsState(saved === 'metric' || saved === 'imperial' ? saved : defaultUnits(navigator.language));
+  }, []);
+  const setUnits = (u) => {
+    setUnitsState(u);
+    try { localStorage.setItem('hillgorithm-units', u); } catch { /* storage blocked */ }
+  };
 
   const pick = useCallback((i) => { setSelected(i); setActiveClimb(null); setHoverIdx(null); setWaterFocus(null); }, []);
 
@@ -135,11 +148,15 @@ export default function RouteViewer({ savedRoutes }) {
               <p>Loops built to your climb</p>
             </div>
           </a>
+          <div className="units-toggle" role="group" aria-label="Units">
+            <button aria-pressed={units === 'metric'} onClick={() => setUnits('metric')} title="Kilometres and metres">km</button>
+            <button aria-pressed={units === 'imperial'} onClick={() => setUnits('imperial')} title="Miles and feet">mi</button>
+          </div>
         </header>
 
         <div className="panel-scroll">
           <SearchForm start={start} onStartChange={setStart} onSearch={search} searching={searching} error={error}
-            race={race} onRaceChange={setRace} />
+            race={race} onRaceChange={setRace} units={units} />
 
           <div className="examples" aria-label="Example searches">
             <span>Examples</span>
@@ -155,7 +172,7 @@ export default function RouteViewer({ savedRoutes }) {
             </div>
             {target && (
               <p className="section-meta">
-                Target {target.distanceM / 1000} km · {target.gainM} m climbing
+                Target {dist(target.distanceM, units, units === 'imperial' ? 1 : 0)} · {elev(target.gainM, units)} climbing
                 {requests && ` · ${requests.misses} new request${requests.misses === 1 ? '' : 's'}${requests.hits ? `, ${requests.hits} from saved answers` : ''}`}
               </p>
             )}
@@ -163,7 +180,7 @@ export default function RouteViewer({ savedRoutes }) {
               <div className="results">
                 {routes.map((r, i) => (
                   <ResultCard key={`${r.file}-${i}`} route={r} index={i} target={target}
-                    selected={i === selected} color={color(i)} onPick={() => pick(i)} />
+                    selected={i === selected} color={color(i)} onPick={() => pick(i)} units={units} />
                 ))}
               </div>
             ) : (
@@ -192,6 +209,7 @@ export default function RouteViewer({ savedRoutes }) {
                   activeClimb={climb}
                   ghost={target?.race && route.patternPenalty != null ? target.race.profile : null}
                   water={route.water?.stops}
+                  units={units}
                 />
                 <div className="tabs" role="tablist" aria-label="Route details">
                   {[
@@ -202,7 +220,7 @@ export default function RouteViewer({ savedRoutes }) {
                     <button key={id} role="tab" className="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
                   ))}
                 </div>
-                {tab === 'overview' && <WhyThisRoute route={route} target={target} routes={routes} />}
+                {tab === 'overview' && <WhyThisRoute route={route} target={target} routes={routes} units={units} />}
                 {tab === 'climbs' && (
                   route.climbs.length ? (
                     <ul className="list">
@@ -211,17 +229,17 @@ export default function RouteViewer({ savedRoutes }) {
                           <button aria-pressed={i === activeClimb} onClick={() => setActiveClimb(i === activeClimb ? null : i)}>
                             <span className="primary-text">
                               <span className="icon-chip climb"><MountainIcon size={14} /></span>
-                              km {(c.startM / 1000).toFixed(1)} – {(c.endM / 1000).toFixed(1)}
+                              {at(c.startM, units)} – {distValue(c.endM, units).toFixed(1)}
                             </span>
-                            <span className="secondary-text"><strong className="grade">+{c.gainM} m</strong> · {(c.grade * 100).toFixed(1)}%</span>
+                            <span className="secondary-text"><strong className="grade">+{elev(c.gainM, units)}</strong> · {(c.grade * 100).toFixed(1)}%</span>
                           </button>
                         </li>
                       ))}
                     </ul>
-                  ) : <p className="hint">No climbs over 30 m.</p>
+                  ) : <p className="hint">No climbs over {elev(30, units)}.</p>
                 )}
                 {tab === 'water' && (
-                  <WaterAndBailout route={route} onPickWater={(s) => { setActiveClimb(null); setWaterFocus([s.lon, s.lat]); }} />
+                  <WaterAndBailout route={route} units={units} onPickWater={(s) => { setActiveClimb(null); setWaterFocus([s.lon, s.lat]); }} />
                 )}
               </div>
             </section>
@@ -269,7 +287,7 @@ export default function RouteViewer({ savedRoutes }) {
 }
 
 /** One result in the list: name, big distance and climbing numbers, misses, surface, short facts. */
-function ResultCard({ route: r, index, target, selected, color, onPick }) {
+function ResultCard({ route: r, index, target, selected, color, onPick, units }) {
   const best = target && index === 0;
   return (
     <button className="result" aria-pressed={selected} onClick={onPick} style={{ '--route-color': color }}>
@@ -280,11 +298,11 @@ function ResultCard({ route: r, index, target, selected, color, onPick }) {
       </span>
       <span className="stats">
         <span className="stat">
-          <span className="stat-value">{(r.distanceM / 1000).toFixed(1)}</span><span className="stat-unit">km</span>
+          <span className="stat-value">{distValue(r.distanceM, units).toFixed(1)}</span><span className="stat-unit">{distUnit(units)}</span>
           {target && <Miss value={r.distanceM} target={target.distanceM} />}
         </span>
         <span className="stat">
-          <span className="stat-value">{r.gainM}</span><span className="stat-unit">m up</span>
+          <span className="stat-value">{Math.round(elevValue(r.gainM, units)).toLocaleString('en-US')}</span><span className="stat-unit">{elevUnit(units)} up</span>
           {target && <Miss value={r.gainM} target={target.gainM} floor={50} />}
         </span>
       </span>
@@ -299,11 +317,10 @@ function ResultCard({ route: r, index, target, selected, color, onPick }) {
   );
 }
 
-const km = (m) => (m / 1000).toFixed(1);
 
 /** Plain-language ranking reasons and warnings for the selected route. */
-function WhyThisRoute({ route, target, routes }) {
-  const { rankNote, reasons, warnings, notes } = explainRoute(route, target, routes);
+function WhyThisRoute({ route, target, routes, units }) {
+  const { rankNote, reasons, warnings, notes } = explainRoute(route, target, routes, { units });
   return (
     <div className="why">
       {rankNote && <p className="rank-note">{rankNote}</p>}
@@ -332,7 +349,7 @@ function WhyThisRoute({ route, target, routes }) {
 }
 
 /** Water stops along the route, how far from the start you get, and places to cut it short. */
-function WaterAndBailout({ route, onPickWater }) {
+function WaterAndBailout({ route, onPickWater, units }) {
   const { water, bailout } = route;
   return (
     <div className="wb">
@@ -348,29 +365,29 @@ function WaterAndBailout({ route, onPickWater }) {
                   <button onClick={() => onPickWater(s)}>
                     <span className="primary-text">
                       <span className="icon-chip water"><DropIcon size={14} /></span>
-                      <span>km {s.km.toFixed(1)} · {s.kind}{s.name ? ` (${s.name})` : ''}</span>
+                      <span>{at(s.km * 1000, units)} · {s.kind}{s.name ? ` (${s.name})` : ''}</span>
                     </span>
-                    <span className="secondary-text">{s.offM} m off{s.checkFirst ? <><br />check it’s drinkable</> : ''}</span>
+                    <span className="secondary-text">{elev(s.offM, units)} off{s.checkFirst ? <><br />filter or treat before drinking</> : ''}</span>
                   </button>
                 </li>
               ))}
             </ul>
-            <p className="hint" style={{ marginTop: 6 }}>Longest stretch without water: {water.longestDryKm.toFixed(1)} km.</p>
+            <p className="hint" style={{ marginTop: 6 }}>Longest stretch without water: {dist(water.longestDryKm * 1000, units)}.</p>
           </>
         ) : (
-          <p className="callout"><DropIcon /> No mapped water within 150 m of this route. Carry what you need.</p>
+          <p className="callout"><DropIcon /> No mapped water within {elev(150, units)} of this route. Carry what you need.</p>
         )}
       </div>
       {bailout && (
         <div>
           <p className="subhead">Bail-out</p>
-          <p className="callout"><HomeIcon /> <span>Farthest from the start: <strong>{km(bailout.farthest.backM)} km</strong> away, at km {bailout.farthest.km.toFixed(1)}.</span></p>
+          <p className="callout"><HomeIcon /> <span>Farthest from the start: <strong>{dist(bailout.farthest.backM, units)}</strong> away, at {at(bailout.farthest.km * 1000, units)}.</span></p>
           {bailout.shortcuts.map((s, i) => (
-            <p key={i} className="callout"><PinIcon /> <span>Cut it short at <strong>km {s.km.toFixed(1)}</strong>: you pass {km(s.backM)} km from the start.</span></p>
+            <p key={i} className="callout"><PinIcon /> <span>Cut it short at <strong>{at(s.km * 1000, units)}</strong>: you pass {dist(s.backM, units)} from the start.</span></p>
           ))}
           <div className="checkpoints">
             {bailout.checkpoints.map((c) => (
-              <span key={c.km} className="chip">km {c.km.toFixed(0)} · {km(c.backM)} back</span>
+              <span key={c.km} className="chip">{units === 'imperial' ? at(c.km * 1000, units) : `km ${c.km.toFixed(0)}`} · {dist(c.backM, units)} back</span>
             ))}
           </div>
           <p className="hint" style={{ marginTop: 8 }}>Distances back are in a straight line; the real way back is longer.</p>

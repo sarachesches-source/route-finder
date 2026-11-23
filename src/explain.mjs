@@ -2,6 +2,7 @@
 // should know before going (steep bits, roads, no water, unknown surface).
 // No network; works on routes from summary.mjs (browser or server).
 import { gradeMix, GRADE_BANDS } from './rehearsal.mjs';
+import { dist, elev, at } from './units.mjs';
 
 /**
  * Steepest climb and descent over any `windowM` stretch (default 200 m), so one bad
@@ -31,18 +32,19 @@ const fit = (p) => (p <= 15 ? 'strong' : p <= 40 ? 'partial' : 'weak');
  * @param route   one result (summary + ranking fields: accuracy, extra, closeEnough, ...)
  * @param target  { distanceM, gainM, shape?, race? } or null for saved routes
  * @param routes  all results shown, to explain the ranking against the others
+ * @param options { units: 'metric' | 'imperial' } for distances in the text (default metric)
  * @returns { rankNote, reasons: [{ label, value, good }], warnings: [string], notes: [string] }
  *   good: true = in its favour, false = against it, null = neutral information
  */
-export function explainRoute(route, target, routes = [route]) {
+export function explainRoute(route, target, routes = [route], { units = 'metric' } = {}) {
   const reasons = [], warnings = [], notes = [];
   let rankNote = null;
 
   if (target) {
     const d = pctMiss(route.distanceM, target.distanceM);
     const g = pctMiss(route.gainM, target.gainM, 50);
-    reasons.push({ label: 'Distance', value: `${(route.distanceM / 1000).toFixed(1)} km (${signed(d)}% vs ${target.distanceM / 1000} km)`, good: Math.abs(d) <= 10 });
-    reasons.push({ label: 'Climbing', value: `${route.gainM} m (${signed(g)}% vs ${target.gainM} m)`, good: Math.abs(g) <= 10 });
+    reasons.push({ label: 'Distance', value: `${dist(route.distanceM, units)} (${signed(d)}% vs ${dist(target.distanceM, units, units === 'imperial' ? 1 : 0)})`, good: Math.abs(d) <= 10 });
+    reasons.push({ label: 'Climbing', value: `${elev(route.gainM, units)} (${signed(g)}% vs ${elev(target.gainM, units)})`, good: Math.abs(g) <= 10 });
     if (route.shapePenalty != null) {
       reasons.push({ label: 'Climb shape', value: `${fit(route.shapePenalty)} match`, good: route.shapePenalty <= 40 });
     }
@@ -63,19 +65,19 @@ export function explainRoute(route, target, routes = [route]) {
 
   // Warnings: things to know before you go.
   const steep = steepest(route.coords, route.along);
-  if (steep.up.pct >= 20) warnings.push(`Steep climb: ${steep.up.pct}% at km ${steep.up.km.toFixed(1)}. Expect to hike it.`);
-  if (steep.down.pct <= -20) warnings.push(`Steep descent: ${-steep.down.pct}% at km ${steep.down.km.toFixed(1)}. Careful when wet.`);
+  if (steep.up.pct >= 20) warnings.push(`Steep climb: ${steep.up.pct}% at ${at(steep.up.km * 1000, units)}. Expect to hike it.`);
+  if (steep.down.pct <= -20) warnings.push(`Steep descent: ${-steep.down.pct}% at ${at(steep.down.km * 1000, units)}. Careful when wet.`);
   if (route.surface?.road >= 25) warnings.push(`${route.surface.road}% is on roads with cars.`);
   if (route.surface?.unknown >= 30) warnings.push(`Surface unknown for ${route.surface.unknown}% (no OpenStreetMap data there).`);
   if (route.water && !route.water.stops.length && route.distanceM >= 10000) {
     warnings.push('No mapped water on the way. Carry what you need.');
   } else if (route.water?.longestDryKm >= 10) {
-    warnings.push(`${route.water.longestDryKm.toFixed(1)} km without water at one point.`);
+    warnings.push(`${dist(route.water.longestDryKm * 1000, units)} without water at one point.`);
   }
 
   // Good-to-know notes.
-  if (steep.up.pct > 0 && steep.up.pct < 20) notes.push(`Steepest climb: ${steep.up.pct}% at km ${steep.up.km.toFixed(1)}.`);
-  if (route.bailout?.shortcuts?.length) notes.push(`Can be cut short at km ${route.bailout.shortcuts[0].km.toFixed(1)}.`);
+  if (steep.up.pct > 0 && steep.up.pct < 20) notes.push(`Steepest climb: ${steep.up.pct}% at ${at(steep.up.km * 1000, units)}.`);
+  if (route.bailout?.shortcuts?.length) notes.push(`Can be cut short at ${at(route.bailout.shortcuts[0].km * 1000, units)}.`);
   if (route.water?.stops?.length) notes.push(`${route.water.stops.length} water stop${route.water.stops.length > 1 ? 's' : ''} on the way.`);
 
   return { rankNote, reasons, warnings, notes };

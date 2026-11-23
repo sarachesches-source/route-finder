@@ -1,14 +1,15 @@
 'use client';
 // "Plan your run": start point, distance, climbing, optional race to rehearse, and
 // less-used options (climb shape, practice mode). Clicking the map also sets the start.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseGpx, gpxName } from '../src/gpx.mjs';
 import { summarizeRace, rehearsalGain, describeGrades } from '../src/rehearsal.mjs';
+import { dist, elev, rate, distUnit, elevUnit, distToM, elevToM, M_PER_MI, FT_PER_M } from '../src/units.mjs';
 import { LocateIcon, UploadIcon, FlagIcon, ChevronIcon, SearchIcon, AlertIcon } from './icons';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
-export default function SearchForm({ start, onStartChange, onSearch, searching, error, race, onRaceChange }) {
+export default function SearchForm({ start, onStartChange, onSearch, searching, error, race, onRaceChange, units = 'metric' }) {
   const [km, setKm] = useState('15');
   const [vert, setVert] = useState('500');
   const [shape, setShape] = useState('');
@@ -30,10 +31,23 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
     return () => clearInterval(t);
   }, [searching]);
 
-  // With a race loaded, climbing follows the race's metres-per-km until the user changes it.
+  // The distance and climbing boxes are in the chosen units; convert what's typed when they change.
+  const shownUnits = useRef(units);
   useEffect(() => {
-    if (race && !vertTouched && Number(km) > 0) setVert(String(rehearsalGain(race, Number(km))));
-  }, [race, km, vertTouched]);
+    if (shownUnits.current === units) return;
+    const toMiles = units === 'imperial';
+    const d = Number(km), v = Number(vert);
+    if (d > 0) setKm(String(Math.round((toMiles ? (d * 1000) / M_PER_MI : (d * M_PER_MI) / 1000) * 2) / 2));
+    if (v >= 0 && vert !== '') setVert(String(toMiles ? Math.round((v * FT_PER_M) / 50) * 50 : Math.round(v / FT_PER_M / 10) * 10));
+    shownUnits.current = units;
+  }, [units]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // With a race loaded, climbing follows the race's climbing rate until the user changes it.
+  useEffect(() => {
+    if (!race || vertTouched || !(Number(km) > 0)) return;
+    const metres = rehearsalGain(race, distToM(Number(km), units) / 1000);
+    setVert(String(units === 'imperial' ? Math.round((metres * FT_PER_M) / 50) * 50 : metres));
+  }, [race, km, vertTouched, units]);
 
   async function loadRace(e) {
     const file = e.target.files?.[0];
@@ -66,7 +80,9 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
   function submit(e) {
     e.preventDefault();
     onSearch({
-      lat: start.lat, lon: start.lon, km: Number(km), vert: Number(vert), practice,
+      // The server always works in km and metres.
+      lat: start.lat, lon: start.lon, km: Math.round(distToM(Number(km), units)) / 1000,
+      vert: Math.round(elevToM(Number(vert), units)), practice,
       shape: race ? '' : shape,
       race: race ? { curve: race.curve, descent: race.descent, grades: race.grades, name: race.name } : undefined,
     });
@@ -107,16 +123,17 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
           <label className="field">
             <span className="field-label">Distance</span>
             <span className="unit-input">
-              <input className="input" type="number" min="2" max="100" step="0.5" required value={km} onChange={(e) => setKm(e.target.value)} />
-              <span className="unit">km</span>
+              <input className="input" type="number" min={units === 'imperial' ? 1.5 : 2} max={units === 'imperial' ? 62 : 100} step="0.5" required
+                value={km} onChange={(e) => setKm(e.target.value)} />
+              <span className="unit">{distUnit(units)}</span>
             </span>
           </label>
           <label className="field">
             <span className="field-label">Climbing</span>
             <span className="unit-input">
-              <input className="input" type="number" min="0" max="5000" step="10" required value={vert}
+              <input className="input" type="number" min="0" max={units === 'imperial' ? 16400 : 5000} step={units === 'imperial' ? 50 : 10} required value={vert}
                 onChange={(e) => { setVert(e.target.value); setVertTouched(true); }} />
-              <span className="unit">m</span>
+              <span className="unit">{elevUnit(units)}</span>
             </span>
           </label>
         </div>
@@ -130,9 +147,9 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
                 <button type="button" className="link" onClick={() => onRaceChange(null)}>Remove</button>
               </div>
               <div className="race-stats">
-                <span>{(race.distanceM / 1000).toFixed(1)} km</span>
-                <span>{race.gainM} m up</span>
-                <span>{Math.round(race.gainPerKm)} m/km</span>
+                <span>{dist(race.distanceM, units)}</span>
+                <span>{elev(race.gainM, units)} up</span>
+                <span>{rate(race.gainPerKm, units)}</span>
                 {race.climbs.length > 0 && <span>{race.climbs.length} main climb{race.climbs.length > 1 ? 's' : ''}</span>}
               </div>
               <svg className="race-mini" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
@@ -143,7 +160,7 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
               <span className="hint">
                 {vertTouched
                   ? <>Using your own climbing target. <button type="button" className="link" onClick={() => setVertTouched(false)}>Match the race</button></>
-                  : <>Climbing set to the race’s {Math.round(race.gainPerKm)} m per km.</>}
+                  : <>Climbing set to the race’s {rate(race.gainPerKm, units)}.</>}
               </span>
             </div>
           ) : (

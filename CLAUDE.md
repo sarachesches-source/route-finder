@@ -116,6 +116,16 @@ Features from the 2026-11-15 research into what other apps miss, best first:
 5. Later: prefer paths the runner hasn't run yet (upload past runs).
 Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 
+## Miles and feet / US (2026-11-23)
+- `src/units.mjs`: display units only (engine stays metric). "metric" = km/m, "imperial" = mi/ft.
+  Planner has a km | mi switch in the brand bar; default from the browser locale (en-US -> imperial),
+  choice saved in localStorage (`hillgorithm-units`). Form converts typed values on switch and sends
+  km/m to the server. explainRoute(..., { units }) and ElevationProfile `units` prop default to metric.
+- US live test 2026-11-23, Chautauqua Park, Boulder CO (16 km / 610 m): 33 requests; best 9.2 mi /
+  2,011 ft (-8% / 0%), 53% trail, fountains found. Example `public/examples/boulder.json`.
+- Spring / water point note now says "filter or treat before drinking".
+- Still open for US: regional default start (Vercel geo headers), more routing quota.
+
 ## Cheaper searches (2026-11-19)
 - The live site hit openrouteservice's own daily quota ("403 Quota exceeded") on 2026-11-19, well
   before the assumed 2,000/day (also happened 2026-11-14). Real limit unknown: owner to check the

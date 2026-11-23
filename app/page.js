@@ -38,7 +38,7 @@ const TRUST = [
 
 const FAQ = [
   ['Is it free?', 'Yes. No subscription, no trial, no card. To keep it free for everyone, each visitor gets a few fresh searches per hour.'],
-  ['Where does it work?', 'Anywhere in Europe. It works best where OpenStreetMap paths are well mapped, which includes most trail areas.'],
+  ['Where does it work?', 'Anywhere trails are mapped in OpenStreetMap, including Europe and North America. Switch between kilometres and miles in the planner.'],
   ['How long does a search take?', 'Up to about two minutes for a brand-new search, because it checks around 24 candidate loops. Repeated searches are instant.'],
   ['Can I use the routes on my watch?', 'Yes. Download any loop as a GPX file and import it into Garmin, COROS, Suunto, Apple Watch apps and most others.'],
   ['Do I need an account?', 'No. Everything works without one. Accounts are coming soon for saving routes and races.'],

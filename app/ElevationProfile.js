@@ -2,6 +2,8 @@
 // Elevation chart for one route. Climbs are shaded; moving over the chart
 // reports the point back so the map can show where you are.
 
+import { dist, elev, at, distUnit } from '../src/units.mjs';
+
 const W = 1000, H = 150;
 
 function nearestIndex(along, d) {
@@ -16,7 +18,8 @@ function nearestIndex(along, d) {
 // `ghost`: optional race outline [[fraction of distance, 0..1 height], ...], drawn dashed and
 // stretched over this route so the two climb patterns can be compared by eye.
 // `water`: optional water stops [{ km }, ...], drawn as blue ticks along the top.
-export default function ElevationProfile({ route, color, hoverIdx, onHover, activeClimb, ghost, water }) {
+// `units`: 'metric' (km, m, default) or 'imperial' (miles, feet) for the labels.
+export default function ElevationProfile({ route, color, hoverIdx, onHover, activeClimb, ghost, water, units = 'metric' }) {
   const { coords, along, climbs } = route;
   const distanceM = along.at(-1) || 1; // chart length = measured along the points
   const ele = coords.map((c) => c[2]);
@@ -44,7 +47,7 @@ export default function ElevationProfile({ route, color, hoverIdx, onHover, acti
     <div className="profile">
       <div className="readout">
         {hover
-          ? <>km <strong>{(hover.d / 1000).toFixed(1)}</strong> · <strong>{Math.round(hover.e)} m</strong> high</>
+          ? <><strong>{at(hover.d, units)}</strong> · <strong>{elev(hover.e, units)}</strong> high</>
           : <span className="muted">Move over the chart to follow it on the map</span>}
       </div>
       <div style={{ position: 'relative' }}>
@@ -79,14 +82,14 @@ export default function ElevationProfile({ route, color, hoverIdx, onHover, acti
               stroke="var(--profile-line)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           )}
         </svg>
-        <span className="ele-label" style={{ top: 2 }}>{Math.round(maxE)} m</span>
-        <span className="ele-label" style={{ bottom: 2 }}>{Math.round(minE)} m</span>
+        <span className="ele-label" style={{ top: 2 }}>{elev(maxE, units)}</span>
+        <span className="ele-label" style={{ bottom: 2 }}>{elev(minE, units)}</span>
       </div>
       {ghostLine && <div className="hint">Dashed line: the race’s shape, stretched to this route’s length.</div>}
       <div className="axis">
-        <span>0 km</span>
-        <span>{(distanceM / 2000).toFixed(1)} km</span>
-        <span>{(distanceM / 1000).toFixed(1)} km</span>
+        <span>0 {distUnit(units)}</span>
+        <span>{dist(distanceM / 2, units)}</span>
+        <span>{dist(distanceM, units)}</span>
       </div>
     </div>
   );
