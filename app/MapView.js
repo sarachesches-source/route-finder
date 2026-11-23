@@ -120,7 +120,7 @@ function highlight(map, count, selected) {
   }
 }
 
-export default function MapView({ routes, selected, colors, hoverPoint, focus, mapStyle, start, onSelect, onPickStart, colorBy = 'route' }) {
+export default function MapView({ routes, selected, colors, hoverPoint, focus, mapStyle, start, onSelect, onPickStart, colorBy = 'route', viewKey = 0 }) {
   const container = useRef(null);
   const mapRef = useRef(null);
   const hoverMarker = useRef(null);
@@ -212,6 +212,12 @@ export default function MapView({ routes, selected, colors, hoverPoint, focus, m
       mapRef.current.fitBounds(boundsOf(focus), { padding: 80, duration: 600, maxZoom: 16 });
     }
   }, [focus?.length, focus?.[0]?.[0], focus?.[0]?.[1]]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fly to the start point when asked (e.g. the planner opened near the visitor).
+  useEffect(() => {
+    if (!viewKey || !mapRef.current) return;
+    mapRef.current.jumpTo({ center: [start.lon, start.lat], zoom: 12 });
+  }, [viewKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Move the start pin when the start changes (map click, typing, or "use my location").
   useEffect(() => {

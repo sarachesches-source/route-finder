@@ -124,7 +124,12 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 - US live test 2026-11-23, Chautauqua Park, Boulder CO (16 km / 610 m): 33 requests; best 9.2 mi /
   2,011 ft (-8% / 0%), 53% trail, fountains found. Example `public/examples/boulder.json`.
 - Spring / water point note now says "filter or treat before drinking".
-- Still open for US: regional default start (Vercel geo headers), more routing quota.
+- Planner opens on the visitor's area (2026-11-23): `/api/where` returns Vercel's IP-based city
+  (x-vercel-ip-latitude/longitude/city/country; not stored; {} locally). Near an example start
+  (<60 km: Cluj, Boulder) that example loads; else start pin + map on their area with 'Your start
+  is set near <city>'; unknown -> Cluj example. US/LR/MM country -> miles unless units chosen.
+  `/plan?start=lat,lon` lets a link set the start. Only when there are no saved routes in out/.
+- Still open for US: more routing quota.
 
 ## Cheaper searches (2026-11-19)
 - The live site hit openrouteservice's own daily quota ("403 Quota exceeded") on 2026-11-19, well

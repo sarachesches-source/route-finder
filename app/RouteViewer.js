@@ -1,7 +1,7 @@
 'use client';
 // The whole screen: brand bar, "Plan your run" form, results and route details on the left,
 // map on the right (on phones: map on top).
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import ElevationProfile from './ElevationProfile';
 import SearchForm from './SearchForm';
@@ -21,10 +21,27 @@ const DEFAULT_START = { lat: 46.7712, lon: 23.6236 }; // central Cluj-Napoca
 
 // Ready-made searches in public/examples (made by scripts/make-examples.mjs from real results).
 const EXAMPLES = [
-  { id: 'forest-edge', label: '15 km · 500 m near Cluj' },
+  { id: 'forest-edge', label: '15 km · 500 m near Cluj', start: { lat: 46.742, lon: 23.587 } },
   { id: 'race-rehearsal', label: 'Mountain marathon rehearsal' },
-  { id: 'boulder', label: '10 mi · 2,000 ft in Boulder, CO' },
+  { id: 'boulder', label: '10 mi · 2,000 ft in Boulder, CO', start: { lat: 39.9989, lon: -105.2815 } },
 ];
+const IMPERIAL_COUNTRIES = ['US', 'LR', 'MM'];
+
+/** Straight-line distance in km, good enough to tell "near" from "far". */
+function kmBetween(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const h = Math.sin(rad(b.lat - a.lat) / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+
+/** "/plan?start=46.74,23.59" lets a shared link choose the start point. */
+function startFromLink() {
+  const q = new URLSearchParams(window.location.search).get('start');
+  if (!q) return null;
+  const [lat, lon] = q.split(',').map(Number);
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+}
 
 const SHAPE_WORDS = { long: 'One long climb', rolling: 'Rolling hills', repeats: 'Hill repeats', flat: 'Flat' };
 function fitWord(penalty) {
@@ -69,12 +86,17 @@ export default function RouteViewer({ savedRoutes }) {
   const [exampleTitle, setExampleTitle] = useState(null); // set while an example is shown
   // Display units: the viewer's last choice, else from their browser (US -> miles and feet).
   const [units, setUnitsState] = useState('metric');
+  const unitsChosen = useRef(false); // the viewer picked units themselves at some point
   useEffect(() => {
     let saved = null;
     try { saved = localStorage.getItem('hillgorithm-units'); } catch { /* storage blocked */ }
-    setUnitsState(saved === 'metric' || saved === 'imperial' ? saved : defaultUnits(navigator.language));
+    unitsChosen.current = saved === 'metric' || saved === 'imperial';
+    setUnitsState(unitsChosen.current ? saved : defaultUnits(navigator.language));
   }, []);
+  const [localArea, setLocalArea] = useState(null); // e.g. 'near Denver' when the map opened near the visitor
+  const [viewKey, setViewKey] = useState(0);         // bump to move the map to the start point
   const setUnits = (u) => {
+    unitsChosen.current = true;
     setUnitsState(u);
     try { localStorage.setItem('hillgorithm-units', u); } catch { /* storage blocked */ }
   };
@@ -124,9 +146,32 @@ export default function RouteViewer({ savedRoutes }) {
     }
   }
 
-  // Nothing saved yet (as on the public site): open with a real example instead of an empty map.
+  // Nothing saved yet (as on the public site): open where the visitor is. A shared link's start
+  // wins; otherwise the visitor's approximate area from /api/where. Near an example, show it;
+  // far from both, open on their own area ready to search; no location known, show Cluj.
   useEffect(() => {
-    if (!savedRoutes.length) loadExample('forest-edge');
+    if (savedRoutes.length) return;
+    let cancelled = false;
+    (async () => {
+      let where = startFromLink();
+      if (!where) {
+        try {
+          const j = await (await fetch('/api/where')).json();
+          if (Number.isFinite(j.lat) && Number.isFinite(j.lon)) where = j;
+        } catch { /* no location: fine */ }
+      }
+      if (cancelled) return;
+      if (where?.country && !unitsChosen.current && IMPERIAL_COUNTRIES.includes(where.country)) setUnitsState('imperial');
+      const near = where && EXAMPLES.find((ex) => ex.start && kmBetween(where, ex.start) < 60);
+      if (!where) loadExample('forest-edge');
+      else if (near) loadExample(near.id);
+      else {
+        setStart({ lat: where.lat, lon: where.lon });
+        setLocalArea(where.city ? `near ${where.city}` : where.country ? 'near you' : 'from your link');
+        setViewKey((k) => k + 1);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const route = routes[selected];
@@ -135,7 +180,7 @@ export default function RouteViewer({ savedRoutes }) {
 
   const heading = exampleTitle ? `Example: ${exampleTitle}` : target
     ? (target.race ? `Rehearsal of ${target.race.name}` : `${routes.length} route${routes.length === 1 ? '' : 's'} found`)
-    : 'Saved routes';
+    : routes.length ? 'Saved routes' : 'Your routes';
 
   return (
     <div className="app">
@@ -186,8 +231,17 @@ export default function RouteViewer({ savedRoutes }) {
             ) : (
               <div className="empty">
                 <div className="empty-icon"><PinIcon size={22} /></div>
-                <strong>No routes yet</strong>
-                Set a start point and press Find routes.
+                {localArea ? (
+                  <>
+                    <strong>Your start is set {localArea}</strong>
+                    Move the pin on the map if you like, pick your distance and climb, and press Find routes.
+                  </>
+                ) : (
+                  <>
+                    <strong>No routes yet</strong>
+                    Set a start point and press Find routes.
+                  </>
+                )}
               </div>
             )}
           </section>
@@ -268,7 +322,7 @@ export default function RouteViewer({ savedRoutes }) {
             ))}
           </div>
         )}
-        {!routes.length && <div className="map-hint">Click the map to set your start point</div>}
+        {!routes.length && <div className="map-hint">{localArea ? 'Click the map to move your start point' : 'Click the map to set your start point'}</div>}
         <MapView
           routes={routes}
           selected={selected}
@@ -280,6 +334,7 @@ export default function RouteViewer({ savedRoutes }) {
           onSelect={pick}
           onPickStart={searching ? null : setStart}
           colorBy={route?.surface ? colorBy : 'route'}
+          viewKey={viewKey}
         />
       </main>
     </div>
