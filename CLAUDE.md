@@ -131,6 +131,13 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
   `/plan?start=lat,lon` lets a link set the start. Only when there are no saved routes in out/.
 - Still open for US: more routing quota.
 
+## Tweak this route (2026-11-23)
+- Buttons on the selected route: Other way round (instant, `reverseRoute` in src/summary.mjs:
+  climbs, water, bail-out, surfaces recalculated, shape/race re-scored), Longer/Shorter (+/-20%
+  distance and climbing), Hillier (+25% climbing), More trail (`preferTrail` -> trailWeight 0.6,
+  mostly cached), More this way (`around` = routeBearing -> directions bearing+-45, ~14 requests).
+- Tweaks reuse the current start and race; the form shows the new targets (`preset` prop).
+
 ## Cheaper searches (2026-11-19)
 - The live site hit openrouteservice's own daily quota ("403 Quota exceeded") on 2026-11-19, well
   before the assumed 2,000/day (also happened 2026-11-14). Real limit unknown: owner to check the

@@ -134,7 +134,7 @@ async function fetchCorrected(job, target, ctx, corrections = ctx.corrections) {
  *      distance correction, plus `candidates` random round trips
  * "wide" strategy (the original, ~55 requests): every direction and shape, fully corrected.
  * Both stop at once if openrouteservice says the daily quota is used up, and never send more
- * than `maxRequests` requests.
+ * than `maxRequests` requests. `directions` limits the search to given bearings ("more this way").
  *
  * @param {{lat:number, lon:number, distanceM:number, gainM:number, shape?:'long'|'rolling'|'repeats', pattern?:number[]}} target
  *   pattern: a race pattern to copy, { climb, descent?, grades? } (see rehearsal.mjs); an array
@@ -142,13 +142,14 @@ async function fetchCorrected(job, target, ctx, corrections = ctx.corrections) {
  * @returns { routes, all, tried, failed, errors, requests, quotaHit }
  */
 export async function findRoutes(target, {
-  apiKey, strategy = 'focused', headings = 8, spreads = [25, 60], focus = 4, candidates, corrections = 2,
+  apiKey, strategy = 'focused', headings = 8, directions: onlyDirections, spreads = [25, 60], focus = 4, candidates, corrections = 2,
   maxRequests = 45, distanceTolerance = 0.05, shapeWeight = 0.5, patternWeight = 0.7, accuracySlack = 10,
   trailWeight = 0.15, keep = 3, concurrency = 4, fetchImpl = fetch, sleep = sleepReal, onProgress,
 } = {}) {
   if (!apiKey) throw new Error('Missing openrouteservice API key');
   const { lat, lon } = target;
-  candidates ??= strategy === 'wide' ? 8 : 3;
+  // `directions`: search only these compass bearings (e.g. around a route the runner liked).
+  candidates ??= onlyDirections ? 0 : strategy === 'wide' ? 8 : 3;
 
   // Count requests, and never ask the same question twice in one search.
   const memo = new Map();
@@ -197,7 +198,8 @@ export async function findRoutes(target, {
   const pointOptions = [3, 4, 6, 8];
   const randomJobs = (n) => Array.from({ length: n }, (_, i) =>
     ({ kind: 'random', lat, lon, lengthFactor: lengthFactors[i % 3], points: pointOptions[i % 4], seed: i + 1 }));
-  const directions = Array.from({ length: headings }, (_, h) => (360 / headings) * h);
+  const directions = onlyDirections?.map((d) => ((Math.round(d) % 360) + 360) % 360)
+    ?? Array.from({ length: headings }, (_, h) => (360 / headings) * h);
 
   if (strategy === 'wide') {
     const jobs = directions.flatMap((h) => spreads.map((sp) => headingJob(h, sp)));

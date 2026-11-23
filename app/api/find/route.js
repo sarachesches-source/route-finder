@@ -1,4 +1,4 @@
-// POST /api/find  { lat, lon, km, vert, shape?, race?: { curve, name }, practice? }
+// POST /api/find  { lat, lon, km, vert, shape?, race?: { curve, name }, around?, preferTrail?, practice? }
 // Runs the route search on the server, so the openrouteservice key never reaches the browser.
 import { SHAPES } from '../../../src/climbs.mjs';
 import { fakeOrsFetch } from '../../../src/fake-ors.mjs';
@@ -38,6 +38,9 @@ export async function POST(request) {
   if (!Number.isFinite(vert) || vert < 0 || vert > 5000) return fail(400, 'Climbing must be between 0 and 5000 m.');
   const shape = body.shape || undefined;
   if (shape && !SHAPES.includes(shape)) return fail(400, `Shape must be one of: ${SHAPES.join(', ')}.`);
+  const around = body.around == null ? undefined : Number(body.around);
+  if (around !== undefined && (!Number.isFinite(around) || around < 0 || around >= 360)) return fail(400, 'Direction must be between 0 and 359 degrees.');
+  const preferTrail = body.preferTrail === true;
   let pattern;
   if (body.race != null) {
     const { curve, descent, grades } = body.race;
@@ -68,7 +71,7 @@ export async function POST(request) {
   // Real searches go through the disk cache, so repeating one costs no quota.
   const fetchImpl = practice ? fakeOrsFetch : cachedFetch(fetch);
   try {
-    const result = await runSearch({ lat, lon, km, vert, shape, pattern }, { practice, apiKey, fetchImpl });
+    const result = await runSearch({ lat, lon, km, vert, shape, pattern, around, preferTrail }, { practice, apiKey, fetchImpl });
     if (result.quotaHit) limiter?.markQuotaOut();
     limiter?.noteRemaining(result.remaining);
     return Response.json({ ...result, practice });

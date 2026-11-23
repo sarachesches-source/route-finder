@@ -9,7 +9,7 @@ import { LocateIcon, UploadIcon, FlagIcon, ChevronIcon, SearchIcon, AlertIcon } 
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
-export default function SearchForm({ start, onStartChange, onSearch, searching, error, race, onRaceChange, units = 'metric' }) {
+export default function SearchForm({ start, onStartChange, onSearch, searching, error, race, onRaceChange, units = 'metric', preset = null }) {
   const [km, setKm] = useState('15');
   const [vert, setVert] = useState('500');
   const [shape, setShape] = useState('');
@@ -41,6 +41,15 @@ export default function SearchForm({ start, onStartChange, onSearch, searching, 
     if (v >= 0 && vert !== '') setVert(String(toMiles ? Math.round((v * FT_PER_M) / 50) * 50 : Math.round(v / FT_PER_M / 10) * 10));
     shownUnits.current = units;
   }, [units]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A tweak ("Longer", "Hillier"...) set new targets: show them in the boxes, in the chosen units.
+  useEffect(() => {
+    if (!preset) return;
+    const mi = units === 'imperial';
+    setKm(String(mi ? Math.round(((preset.km * 1000) / M_PER_MI) * 10) / 10 : preset.km));
+    setVert(String(mi ? Math.round((preset.vert * FT_PER_M) / 10) * 10 : preset.vert));
+    setVertTouched(true); // keep the tweak's climbing even with a race loaded
+  }, [preset?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // With a race loaded, climbing follows the race's climbing rate until the user changes it.
   useEffect(() => {

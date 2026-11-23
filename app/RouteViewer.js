@@ -9,6 +9,8 @@ import { SURFACE_GROUPS } from '../src/surface.mjs';
 import { explainRoute } from '../src/explain.mjs';
 import { toGpx } from '../src/engine.mjs';
 import { defaultUnits, dist, elev, at, distValue, elevValue, distUnit, elevUnit } from '../src/units.mjs';
+import { reverseRoute } from '../src/summary.mjs';
+import { routeBearing } from '../src/bailout.mjs';
 import {
   LogoIcon, MountainIcon, DropIcon, DownloadIcon, AlertIcon, CheckIcon, CrossIcon, PinIcon, HomeIcon, FlagIcon,
 } from './icons';
@@ -95,6 +97,8 @@ export default function RouteViewer({ savedRoutes }) {
   }, []);
   const [localArea, setLocalArea] = useState(null); // e.g. 'near Denver' when the map opened near the visitor
   const [viewKey, setViewKey] = useState(0);         // bump to move the map to the start point
+  const [preset, setPreset] = useState(null);        // new targets for the form after a tweak
+  const [tweaking, setTweaking] = useState(null);    // which tweak button is searching
   const setUnits = (u) => {
     unitsChosen.current = true;
     setUnitsState(u);
@@ -123,6 +127,37 @@ export default function RouteViewer({ savedRoutes }) {
     } finally {
       setSearching(false);
     }
+  }
+
+  /** "Tweak this route": search again from the selected route, or flip it instantly. */
+  async function tweak(kind) {
+    if (!route || searching) return;
+    const racePattern = target?.race
+      ? { climb: target.race.curve, descent: target.race.descent, grades: target.race.grades } : null;
+    if (kind === 'reverse') {
+      setRoutes((rs) => rs.map((r, i) => (i === selected
+        ? reverseRoute(r, { shape: target?.shape || null, pattern: racePattern }) : r)));
+      setActiveClimb(null); setHoverIdx(null); setWaterFocus(null);
+      return;
+    }
+    const base = target ?? { distanceM: route.distanceM, gainM: route.gainM };
+    let km = base.distanceM / 1000, vert = base.gainM;
+    const extra = {};
+    if (kind === 'longer') { km *= 1.2; vert *= 1.2; }
+    if (kind === 'shorter') { km *= 0.8; vert *= 0.8; }
+    if (kind === 'hillier') vert *= 1.25;
+    if (kind === 'trail') extra.preferTrail = true;
+    if (kind === 'thisway') extra.around = routeBearing(route.coords);
+    km = Math.min(100, Math.max(2, Math.round(km * 10) / 10));
+    vert = Math.min(5000, Math.max(0, Math.round(vert / 10) * 10));
+    setPreset({ km, vert, key: Date.now() });
+    setTweaking(kind);
+    await search({
+      lat: start.lat, lon: start.lon, km, vert, practice, shape: target?.shape || '',
+      race: target?.race ? { curve: target.race.curve, descent: target.race.descent, grades: target.race.grades, name: target.race.name } : undefined,
+      ...extra,
+    });
+    setTweaking(null);
   }
 
   function showSaved() { setRoutes(savedRoutes); setTarget(null); setPractice(false); setRequests(null); setExampleTitle(null); pick(0); }
@@ -201,7 +236,7 @@ export default function RouteViewer({ savedRoutes }) {
 
         <div className="panel-scroll">
           <SearchForm start={start} onStartChange={setStart} onSearch={search} searching={searching} error={error}
-            race={race} onRaceChange={setRace} units={units} />
+            race={race} onRaceChange={setRace} units={units} preset={preset} />
 
           <div className="examples" aria-label="Example searches">
             <span>Examples</span>
@@ -255,6 +290,7 @@ export default function RouteViewer({ savedRoutes }) {
                 </button>
               </div>
               <div className="details-body">
+                <TweakBar onTweak={tweak} busy={searching} tweaking={tweaking} />
                 <ElevationProfile
                   route={route}
                   color={color(selected)}
@@ -337,6 +373,29 @@ export default function RouteViewer({ savedRoutes }) {
           viewKey={viewKey}
         />
       </main>
+    </div>
+  );
+}
+
+const TWEAKS = [
+  ['reverse', 'Other way round', 'Run this loop in the opposite direction (instant, no new search)'],
+  ['longer', 'Longer', 'Search again with 20% more distance and climbing'],
+  ['shorter', 'Shorter', 'Search again with 20% less distance and climbing'],
+  ['hillier', 'Hillier', 'Search again with 25% more climbing over the same distance'],
+  ['trail', 'More trail', 'Search again, favouring trail much more strongly'],
+  ['thisway', 'More this way', 'Search again only around the direction this loop heads'],
+];
+
+/** Small buttons to search again from the selected route, or flip it. */
+function TweakBar({ onTweak, busy, tweaking }) {
+  return (
+    <div className="tweaks" role="group" aria-label="Tweak this route">
+      <span>Tweak</span>
+      {TWEAKS.map(([id, label, title]) => (
+        <button key={id} className="chip-btn" title={title} disabled={busy && id !== 'reverse'} onClick={() => onTweak(id)}>
+          {tweaking === id ? <><span className="spinner tiny" /> {label}</> : label}
+        </button>
+      ))}
     </div>
   );
 }

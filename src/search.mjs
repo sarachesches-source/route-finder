@@ -8,16 +8,22 @@ import { cachedFetch } from './ors-cache.mjs';
 import { loopDirection } from './rehearsal.mjs';
 
 /**
- * @param params  { lat, lon, km, vert, shape?, pattern? }  (already checked)
+ * @param params  { lat, lon, km, vert, shape?, pattern?, around?, preferTrail? }  (already checked)
+ *   around: compass bearing to search around; preferTrail: rank trail much higher
  * @param options { practice, apiKey, fetchImpl? }
  * @returns { routes, tried, failed, requests: { hits, misses } | null }
  *   `fetchImpl.stats` is also readable by the caller to count requests if this throws.
  */
-export async function runSearch({ lat, lon, km, vert, shape, pattern }, { practice = false, apiKey, fetchImpl } = {}) {
+export async function runSearch({ lat, lon, km, vert, shape, pattern, around, preferTrail }, { practice = false, apiKey, fetchImpl } = {}) {
   const fetcher = fetchImpl ?? (practice ? fakeOrsFetch : cachedFetch(fetch));
   const result = await findRoutes(
     { lat, lon, distanceM: km * 1000, gainM: vert, shape: shape || undefined, pattern: pattern ?? undefined },
-    practice ? { apiKey, fetchImpl: fetcher, sleep: async () => {} } : { apiKey, fetchImpl: fetcher },
+    {
+      apiKey, fetchImpl: fetcher, ...(practice && { sleep: async () => {} }),
+      // Tweaks from "More this way" / "More trail": search around a bearing, favour trail strongly.
+      ...(around != null && { directions: [around - 45, around, around + 45] }),
+      ...(preferTrail && { trailWeight: 0.6 }),
+    },
   );
   const routes = result.routes.map((r, i) => summarizeRoute(r.coords, {
     name: `Result ${i + 1}`, file: `route-${i + 1}.gpx`,
