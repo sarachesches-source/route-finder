@@ -196,7 +196,9 @@ export default function RouteViewer({ savedRoutes }) {
         } catch { /* no location: fine */ }
       }
       if (cancelled) return;
-      if (where?.country && !unitsChosen.current && IMPERIAL_COUNTRIES.includes(where.country)) setUnitsState('imperial');
+      // The visitor's country decides units (many Europeans browse in US English); browser language
+      // was only a first guess. A choice made with the km | mi switch always wins.
+      if (where?.country && !unitsChosen.current) setUnitsState(IMPERIAL_COUNTRIES.includes(where.country) ? 'imperial' : 'metric');
       const near = where && EXAMPLES.find((ex) => ex.start && kmBetween(where, ex.start) < 60);
       if (!where) loadExample('forest-edge');
       else if (near) loadExample(near.id);

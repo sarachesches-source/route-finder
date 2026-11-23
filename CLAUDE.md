@@ -127,7 +127,8 @@ Web form real search checked 2026-11-15: 0 new requests, 55 from saved answers.
 - Planner opens on the visitor's area (2026-11-23): `/api/where` returns Vercel's IP-based city
   (x-vercel-ip-latitude/longitude/city/country; not stored; {} locally). Near an example start
   (<60 km: Cluj, Boulder) that example loads; else start pin + map on their area with 'Your start
-  is set near <city>'; unknown -> Cluj example. US/LR/MM country -> miles unless units chosen.
+  is set near <city>'; unknown -> Cluj example. Units follow the IP country (US/LR/MM -> miles, else km) unless the
+  viewer chose with the switch; browser language is only the fallback (owner's Chrome is en-US in RO).
   `/plan?start=lat,lon` lets a link set the start. Only when there are no saved routes in out/.
 - Still open for US: more routing quota.
 
